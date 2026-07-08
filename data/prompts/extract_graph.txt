@@ -1,0 +1,177 @@
+
+-Goal-
+Given a text document that is potentially relevant to this activity and a list of entity types, identify all entities of those types from the text and all relationships among the identified entities.
+
+-Steps-
+1. Identify all entities. For each identified entity, extract the following information:
+- entity_name: Name of the entity, capitalized
+- entity_type: One of the following types: [law, consumer, business, government, product, service]
+- entity_description: Comprehensive description of the entity's attributes and activities
+Format each entity as ("entity"<|><entity_name><|><entity_type><|><entity_description>)
+
+2. From the entities identified in step 1, identify all pairs of (source_entity, target_entity) that are *clearly related* to each other.
+For each pair of related entities, extract the following information:
+- source_entity: name of the source entity, as identified in step 1
+- target_entity: name of the target entity, as identified in step 1
+- relationship_description: explanation as to why you think the source entity and the target entity are related to each other
+- relationship_strength: an integer score between 1 to 10, indicating strength of the relationship between the source entity and target entity
+Format each relationship as ("relationship"<|><source_entity><|><target_entity><|><relationship_description><|><relationship_strength>)
+
+3. Return output in Portuguese as a single list of all the entities and relationships identified in steps 1 and 2. Use **##** as the list delimiter.
+
+4. If you have to translate into Portuguese, just translate the descriptions, nothing else!
+
+5. When finished, output <|COMPLETE|>.
+
+-Examples-
+######################
+
+Example 1:
+
+entity_types: [law, consumer, business, government, product, service]
+text:
+ O PRESIDENTE DA REPÚBLICA, faço saber que o Congresso Nacional decreta e eu sanciono a seguinte lei:
+
+TÍTULO I
+Dos Direitos do Consumidor
+
+CAPÍTULO I
+Disposições Gerais
+
+        Art. 1° O presente código estabelece normas de proteção e defesa do consumidor, de ordem pública e interesse social, nos termos dos arts. 5°, inciso XXXII, 170, inciso V, da Constituição Federal e art. 48 de suas Disposições Transitórias.
+
+        Art. 2° Consumidor é toda pessoa física ou jurídica que adquire ou utiliza produto ou serviço como destinatário final.
+
+        Parágrafo único. Equipara-se a consumidor a coletividade de pessoas, ainda que indetermináveis, que haja intervindo nas relações de consumo.
+
+        Art. 3° Fornecedor é toda pessoa física ou jurídica, pública ou privada, nacional ou estrangeira, bem como os entes despersonalizados, que desenvolvem atividade de produção, montagem, criação, construção, transformação, importação, exportação, distribuição ou comercialização de produtos ou prestação de serviços.
+
+        § 1° Produto é qualquer bem, móvel ou imóvel, material ou imaterial.
+
+        § 2° Serviço é qualquer atividade fornecida no mercado de consumo, mediante remuneração, inclusive as de natureza bancária, financeira, de crédito e securitária, salvo as decorrentes das relações de caráter trabalhista.
+
+CAPÍTULO II
+Da Política Nacional de Relações de Consumo
+
+        Art. 4º A Política Nacional das Relações de Consumo tem por objetivo o atendimento das necessidades dos consumidores, o respeito à sua dignidade, saúde e segurança, a proteção de seus interesses econômicos, a melhoria da sua qualidade de vida, bem como a transparência e harmonia das relações de consumo, atendidos os seguintes princípios:             (Redação dada pela Lei nº 9.008, de 21.3.1995)
+
+        I - reconhecimento da vulnerabilidade do consumidor no mercado de consumo;
+
+        II - ação governamental no sentido de proteger efetivamente o consumidor:
+
+        a) por iniciativa direta;
+
+        b) por incentivos à criação e desenvolvimento de associações representativas;
+
+        c) pela presença do Estado no mercado de consumo;
+
+        d) pela garantia dos produtos e serviços com padrões adequados de qualidade, segurança, durabilidade e desempenho.
+
+        III - harmonização dos interesses dos participantes das relações de consumo e compatibilização da proteção do consumidor com a necessidade de desenvolvimento econômico e tecnológico, de modo a viabilizar os princípios nos quais se funda a ordem econômica (art. 170, da Constituição Federal), sempre com base na boa-fé e equilíbrio nas relações entre consumidores e fornecedores;
+
+        IV - educação e informação de fornecedores e consumidores, quanto aos seus direitos e deveres, com vistas à melhoria do mercado de consumo;
+
+        V - incentivo à criação pelos fornecedores de meios eficientes de controle de qualidade e segurança de produtos e serviços, assim como de mecanismos alternativos de solução de conflitos de consumo;
+
+        VI - coibição e repressão eficientes de todos os abusos praticados no mercado de consumo, inclusive a concorrência desleal e utilização indevida de inventos e criações industriais das marcas e nomes comerciais e signos distintivos, que possam causar prejuízos aos consumidores;
+
+        VII - racionalização e melhoria dos serviços públicos;
+
+        VIII - estudo constante das modificações do mercado de consumo.
+
+        IX - fomento de ações direcionadas à educação financeira e ambiental dos consumidores;     (Incluído pela Lei nº 14.181, de 2021)
+
+        X - prevenção e tratamento do superendividamento como forma de evitar a exclusão social do consumidor.       (Incluído pela Lei nº 14.181, de 2021)
+
+        Art. 5° Para a execução da Política Nacional das Relações de Consumo, contará o poder público com os seguintes instrumentos, entre outros:
+
+        I - manutenção de assistência jurídica, integral e gratuita para o consumidor carente;
+
+        II - instituição de Promotorias de Justiça de Defesa do Consumidor, no âmbito do Ministério Público;
+
+        III - criação de delegacias de polícia especializadas no atendimento de consumidores vítimas de infrações penais de consumo;
+
+        IV - criação de Juizados Especiais de Pequenas Causas e Varas Especializadas para a solução de litígios de consumo;
+
+        V - concessão de estímulos à criação e desenvolvimento das Associações de Defesa do Consumidor.
+
+        VI - instituição de mecanismos de prevenção e tratamento extrajudicial e judicial do superendividamento e de proteção do consumidor pessoa natural;       (In
+------------------------
+output:
+Based on the provided text, I will perform the required tasks:
+
+**Step 1: Identify all entities**
+
+After analyzing the text, I have identified the following entities:
+
+("entity"<|>CONGRESSO NACIONAL<|>GOVERNMENT<|>The Congresso Nacional is a part of the government)
+##
+("entity"<|>PRESIDENTE DA REPÚBLICA<|>PERSON<|>The Presidente da República is the head of state and government)
+##
+("entity"<|>CONSTITUIÇÃO FEDERAL<|>LAW<|>The Constituição Federal is the supreme law of the land)
+##
+("entity"<|>CÓDIGO DE DEFESA DO CONSUMIDOR<|>LAW<|>The Código de Defesa do Consumidor is a consumer protection law)
+##
+("entity"<|>CONSUMIDOR<|>CONSUMER<|>A consumidor is a person who acquires or utilizes a product or service as the final destination)
+##
+("entity"<|>FORNECEDOR<|>BUSINESS<|>A fornecedor is any individual or entity that develops an activity of production, transformation, or commercialization of products or services)
+##
+("entity"<|>PRODUTO<|>PRODUCT<|>A produto is a good, either material or immaterial)
+##
+("entity"<|>SERVICIO<|>SERVICE<|>A serviço is any activity provided in the market of consumption, including those related to finance and credit)
+
+**Step 2: Identify all pairs of related entities**
+
+After analyzing the text, I have identified the following relationships:
+
+("relationship"<|>CONGRESSO NACIONAL<|>PRESIDENTE DA REPÚBLICA<|>The Presidente da República makes known that the Congresso Nacional decreta and sanciona a law<|>10)
+##
+("relationship"<|>CONSTITUIÇÃO FEDERAL<|>CÓDIGO DE DEFESA DO CONSUMIDOR<|>The Código de Defesa do Consumidor is based on the principles of the Constituição Federal<|>9)
+##
+("relationship"<|>CONSUMIDOR<|>FORNECEDOR<|>A consumidor interacts with a fornecedor in the market of consumption<|>8)
+##
+("relationship"<|>PRODUTO<|>SERVICIO<|>A produto is often accompanied by a serviço in the market of consumption<|>7)
+
+**Step 3: Return output in Portuguese as a single list of all entities and relationships identified**
+
+Here is the combined output:
+
+("entity"<|>CONGRESSO NACIONAL<|>GOVERNMENT<|>The Congresso Nacional is a part of the government)
+##
+("entity"<|>PRESIDENTE DA REPÚBLICA<|>PERSON<|>The Presidente da República is the head of state and government)
+##
+("entity"<|>CONSTITUIÇÃO FEDERAL<|>LAW<|>The Constituição Federal is the supreme law of the land)
+##
+("entity"<|>CÓDIGO DE DEFESA DO CONSUMIDOR<|>LAW<|>The Código de Defesa do Consumidor is a consumer protection law)
+##
+("entity"<|>CONSUMIDOR<|>CONSUMER<|>A consumidor is a person who acquires or utilizes a product or service as the final destination)
+##
+("entity"<|>FORNECEDOR<|>BUSINESS<|>A fornecedor is any individual or entity that develops an activity of production, transformation, or commercialization of products or services)
+##
+("entity"<|>PRODUTO<|>PRODUCT<|>A produto is a good, either material or immaterial)
+##
+("entity"<|>SERVICIO<|>SERVICE<|>A serviço is any activity provided in the market of consumption, including those related to finance and credit)
+##
+("relationship"<|>CONGRESSO NACIONAL<|>PRESIDENTE DA REPÚBLICA<|>The Presidente da República makes known that the Congresso Nacional decreta and sanciona a law<|>10)
+##
+("relationship"<|>CONSTITUIÇÃO FEDERAL<|>CÓDIGO DE DEFESA DO CONSUMIDOR<|>The Código de Defesa do Consumidor is based on the principles of the Constituição Federal<|>9)
+##
+("relationship"<|>CONSUMIDOR<|>FORNECEDOR<|>A consumidor interacts with a fornecedor in the market of consumption<|>8)
+##
+("relationship"<|>PRODUTO<|>SERVICIO<|>A produto is often accompanied by a serviço in the market of consumption<|>7)
+
+**Step 4: Output `<|COMPLETE|>`**
+
+<|COMPLETE|>
+
+Note that I have translated the descriptions and labels as required.
+#############################
+
+
+
+-Real Data-
+######################
+entity_types: [law, consumer, business, government, product, service]
+text: {input_text}
+######################
+output:

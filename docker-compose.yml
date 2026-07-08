@@ -1,0 +1,31 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    # descomente se tiver GPU NVIDIA configurada:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  graphrag:
+    build: ./graphrag
+    container_name: graphrag
+    depends_on:
+      - ollama
+    volumes:
+      - ./data:/data
+    working_dir: /data
+    tty: true
+    stdin_open: true
+
+volumes:
+  ollama_data:
