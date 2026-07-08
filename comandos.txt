@@ -1,0 +1,13 @@
+rodar indexacao no container: docker exec -it graphrag graphrag index --root /data
+rodar script para gerar arquivo html de visualizacao dentro do container: docker exec -it graphrag python /data/visualize_graph.py
+rodar query dentro do container: docker exec -it graphrag graphrag query "o que diz o artigo 1 do CDC?" --root /data --method local
+pormpt-tunning: docker exec -it graphrag graphrag prompt-tune --root /data --limit 1
+
+
+
+
+
+ao reindexar, temos primeiro que excluir os arqivos gerados anteriormente:
+docker exec -it graphrag rm -rf /data/cache
+docker exec -it graphrag rm -rf /data/output
+docker exec -it graphrag rm -rf /data/logs
