@@ -27,5 +27,26 @@ services:
     tty: true
     stdin_open: true
 
+  backend:
+    build: ./app/backend
+    container_name: graphrag-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data:ro
+    restart: unless-stopped
+
+  frontend:
+    build: ./app/frontend
+    container_name: graphrag-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
 volumes:
   ollama_data:
