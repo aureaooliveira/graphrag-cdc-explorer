@@ -9,9 +9,7 @@ Sistemas de \textit{Retrieval-Augmented Generation} (RAG) tornaram-se uma das
 abordagens mais utilizadas para permitir que modelos de linguagem de grande
 porte (\textit{Large Language Models} -- LLMs) respondam perguntas com base em
 uma base de conhecimento externa e específica de domínio, reduzindo problemas
-como respostas desatualizadas ou alucinadas
-%(LEWIS et al., 2020)
-. Na abordagem tradicional de RAG, o texto é dividido em fragmentos
+como respostas desatualizadas ou alucinadas \cite{lewis2020retrieval}. Na abordagem tradicional de RAG, o texto é dividido em fragmentos
 (\textit{chunks}), convertido em vetores por meio de \textit{embeddings} e
 recuperado por similaridade semântica no momento da consulta. Essa estratégia,
 no entanto, apresenta limitações quando o domínio de conhecimento possui uma
@@ -20,9 +18,7 @@ informações dispersas em diferentes trechos do texto -- situação recorrente 
 textos legislativos, nos quais artigos remetem uns aos outros, estabelecem
 exceções e são complementados por súmulas e jurisprudência.
 
-O \textit{framework} GraphRAG, desenvolvido pela Microsoft
-%(EDGE et al., 2024)
-, propõe uma alternativa a essa limitação: em vez de recuperar apenas
+O \textit{framework} GraphRAG, desenvolvido pela Microsoft \cite{edge2024global}, propõe uma alternativa a essa limitação: em vez de recuperar apenas
 fragmentos de texto semanticamente similares, o GraphRAG constrói um grafo de
 conhecimento a partir do corpus de entrada, extraindo entidades e relações por
 meio de um LLM, agrupando-as em comunidades hierárquicas e gerando resumos para

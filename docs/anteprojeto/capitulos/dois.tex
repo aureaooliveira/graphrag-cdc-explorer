@@ -86,9 +86,7 @@ o que favorece a resposta a perguntas de natureza global.
 \label{sec-fundteo-graphrag-ms}
 
 Este trabalho utiliza o GraphRAG, biblioteca de código aberto desenvolvida
-pela Microsoft Research
-%(EDGE et al., 2024)
-, disponibilizada como pacote Python (\texttt{graphrag}) e distribuída sob
+pela Microsoft Research \cite{edge2024global}, disponibilizada como pacote Python (\texttt{graphrag}) e distribuída sob
 licença MIT. O GraphRAG propõe um método estruturado e hierárquico de RAG
 que, diferentemente da abordagem vetorial ingênua, extrai um grafo de
 conhecimento a partir do texto bruto por meio de um LLM, constrói uma
@@ -126,7 +124,7 @@ etapa específica do processamento:
 
     \item \textbf{Detecção de comunidades:} o grafo de entidades e relações
     extraído é submetido a um algoritmo de detecção de comunidades -- o
-    GraphRAG utiliza, por padrão, o algoritmo de Leiden --, que particiona o
+    GraphRAG utiliza, por padrão, o algoritmo de Leiden \cite{traag2019louvain} --, que particiona o
     grafo em grupos hierárquicos de entidades fortemente conectadas entre si,
     formando diferentes níveis de granularidade (de comunidades menores e mais
     específicas a comunidades maiores e mais abrangentes).
@@ -257,26 +255,14 @@ relações e comunidades) para consumo pela interface de visualização.
 \subsection{\textit{Frontend}}
 \label{sec-fundteo-stack-frontend}
 
-Para a interface web, propõe-se o uso de \textbf{React} com
-\textbf{TypeScript}, construído sobre a ferramenta de \textit{build}
-\textbf{Vite}, combinação amplamente utilizada e bem documentada para o
-desenvolvimento de interfaces modernas de forma ágil. Para a estilização,
-propõe-se o uso do \textbf{Tailwind CSS} em conjunto com uma biblioteca de
-componentes prontos (como \textit{shadcn/ui}), o que permite obter uma
-interface visualmente cuidada com baixo esforço de design, alinhado à
-prioridade de manter a aplicação simples, funcional e esteticamente
-agradável, sem que essa camada consuma esforço desproporcional do trabalho.
-
-Para a visualização interativa do grafo de conhecimento -- um dos entregáveis
-centrais da aplicação --, propõe-se o uso de uma biblioteca especializada em
-visualização de grafos sobre React, como a \textbf{react-force-graph}
-(baseada em simulação de forças, \textit{force-directed layout}) ou o
-\textbf{Cytoscape.js}, ambas amplamente utilizadas para esse tipo de
-visualização e capazes de lidar com interações como zoom, arraste de nós e
-exibição de detalhes (descrição, tipo, relações) ao selecionar uma entidade.
-A escolha final entre essas alternativas será feita durante a fase de
-desenvolvimento, com base em testes de desempenho sobre o volume de dados do
-grafo gerado para o CDC completo.
+Para a interface web, propõe-se  um Single Page Application (SPA) utilizando React 
+e TypeScript sobre o ecossistema de build Vite, garantindo agilidade e tipagem segura.
+A estruturação visual e estilização adotaram o Tailwind CSS com componentes modulares 
+baseados na biblioteca shadcn/ui, conferindo um design responsivo e com mínimo esforço de escrita de CSS.
+O núcleo da aplicação — a visualização interativa do grafo gerado pelo GraphRAG — será construído com a biblioteca
+react-force-graph-2d, que oferece uma exploração fluida, permitindo ao usuário navegar espacialmente (zoom e arraste),
+alternar esquemas de cores por agrupamentos de comunidades, visualizar ferramentas de dicas (tooltips) em arestas e abrir
+ painéis detalhados de entidades que exibem seus atributos e os relatórios contextuais das comunidades extraídas via LLM.
 
 \subsection{Infraestrutura e Execução}
 \label{sec-fundteo-stack-infra}
