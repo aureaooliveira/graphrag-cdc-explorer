@@ -7,7 +7,7 @@
 
 Sistemas de \textit{Retrieval-Augmented Generation} (RAG) tornaram-se uma das
 abordagens mais utilizadas para permitir que modelos de linguagem de grande
-porte (\textit{Large Language Models} -- LLMs) respondam perguntas com base em
+porte (\textit{Large Language Models} -- LLMs) \cite{vaswani2017attention, brown2020language} respondam perguntas com base em
 uma base de conhecimento externa e específica de domínio, reduzindo problemas
 como respostas desatualizadas ou alucinadas \cite{lewis2020retrieval}. Na abordagem tradicional de RAG, o texto é dividido em fragmentos
 (\textit{chunks}), convertido em vetores por meio de \textit{embeddings} e
@@ -28,7 +28,7 @@ distribuída por múltiplas partes do corpus -- uma capacidade particularmente
 relevante para a análise de legislação.
 
 Este trabalho tem como contexto a aplicação do GraphRAG à legislação do Código
-de Defesa do Consumidor (CDC, Lei n.º 8.078/1990). O escopo do trabalho está
+de Defesa do Consumidor (CDC, Lei n.º 8.078/1990) \cite{brasil1990cdc}. O escopo do trabalho está
 delimitado à construção de uma prova de conceito (\textit{Proof of Concept} --
 PoC): um sistema que indexa o texto do CDC utilizando o GraphRAG, armazenando
 as informações como um grafo de entidades e relações juridicamente
@@ -68,7 +68,7 @@ artificial reforça a relevância prática de investigar sistemas de recuperaç�
 de informação mais adequados a esse domínio.
 
 Ainda que sistemas de RAG aplicados ao domínio jurídico já tenham sido
-explorados na literatura, a maior parte desses trabalhos utiliza abordagens de
+explorados na literatura \cite{cui2023chatlaw}, a maior parte desses trabalhos utiliza abordagens de
 recuperação vetorial tradicional. Este trabalho busca
 contribuir com essa lacuna, investigando de forma prática se a abordagem em
 grafo do GraphRAG traz ganhos perceptíveis de qualidade e completude nas

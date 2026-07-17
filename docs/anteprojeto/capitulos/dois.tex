@@ -22,7 +22,7 @@ para o desenvolvimento da aplicação web que compõe a prova de conceito.
 \section{\textit{Retrieval-Augmented Generation} (RAG)}
 \label{sec-fundteo-rag}
 
-Modelos de linguagem de grande porte (\textit{Large Language Models} -- LLMs)
+Modelos de linguagem de grande porte (\textit{Large Language Models} -- LLMs) \cite{vaswani2017attention, brown2020language}
 são treinados sobre grandes volumes de texto até uma determinada data de
 corte, o que os torna limitados quando confrontados com perguntas que exigem
 conhecimento posterior a esse treinamento ou conhecimento específico de um
@@ -31,8 +31,7 @@ sujeitos ao fenômeno de \textit{alucinação}, no qual o modelo gera respostas
 plausíveis, porém factualmente incorretas ou não fundamentadas em nenhuma
 fonte real.
 
-O paradigma de \textit{Retrieval-Augmented Generation}
-%(LEWIS et al., 2020)
+O paradigma de \textit{Retrieval-Augmented Generation} \cite{lewis2020retrieval}
 foi proposto como forma de mitigar essas limitações, combinando um mecanismo
 de recuperação de informação (\textit{retrieval}) a um modelo de geração de
 texto. Em vez de depender exclusivamente do conhecimento paramétrico
@@ -50,7 +49,7 @@ etapa de indexação, os documentos da base de conhecimento são divididos em
 fragmentos menores (\textit{chunks}), e cada fragmento é convertido em um
 vetor numérico de alta dimensão por meio de um modelo de
 \textit{embeddings}, que captura sua representação semântica. Esses vetores
-são armazenados em um banco de dados vetorial. Na etapa de consulta, a
+são armazenados em um banco de dados vetorial \cite{johnson2019billion}. Na etapa de consulta, a
 pergunta do usuário é igualmente convertida em vetor, e os fragmentos
 armazenados com maior similaridade de \textit{cosseno} em relação a esse vetor
 são recuperados e inseridos no contexto do LLM.
@@ -59,7 +58,7 @@ Embora essa abordagem seja eficaz em diversos cenários, ela apresenta
 limitações relevantes para o presente trabalho. A recuperação por similaridade
 vetorial opera sobre fragmentos de texto de forma isolada, sem representar
 explicitamente as relações estruturais entre diferentes partes do corpus. Em
-domínios como o jurídico, nos quais um artigo de lei frequentemente depende de
+domínios como o jurídico \cite{cui2023chatlaw}, nos quais um artigo de lei frequentemente depende de
 definições, exceções e remissões estabelecidas em outros artigos, essa
 limitação pode levar à recuperação de fragmentos parcialmente relevantes, mas
 insuficientes para compor uma resposta completa. Adicionalmente, o RAG
@@ -137,7 +136,7 @@ etapa específica do processamento:
     \item \textbf{Geração de \textit{embeddings}:} por fim, são gerados
     vetores de \textit{embedding} para as descrições de entidades, para as
     unidades de texto originais e para os relatórios de comunidade,
-    armazenados em um banco de dados vetorial (por padrão, LanceDB) para uso
+    armazenados em um banco de dados vetorial (por padrão, LanceDB \cite{lancedb}) para uso
     nas etapas de consulta que combinam busca vetorial com a estrutura do
     grafo.
 \end{itemize}
