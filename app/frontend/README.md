@@ -1,32 +1,14 @@
-# React + TypeScript + Vite
+# Frontend — visualizador do grafo
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Aplicação React + TypeScript (Vite) que exibe de forma interativa o grafo de
+conhecimento gerado pelo GraphRAG, consumindo a API do backend
+(`VITE_API_URL`, padrão `http://localhost:8000`).
 
-Currently, two official plugins are available:
+- `src/components/GraphView.tsx` — renderização do grafo (react-force-graph-2d)
+- `src/components/FiltersPanel.tsx` — filtros por tipo de entidade e comunidade
+- `src/components/EntityDetailsPanel.tsx` — detalhes da entidade selecionada
+- `src/components/Legend.tsx` — legenda de cores
+- `src/hooks/useGraphData.ts` — carregamento dos dados da API
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Execução: o serviço `frontend` do `docker-compose.yml` sobe o servidor de
+desenvolvimento em `http://localhost:5173`. Veja o README da raiz do projeto.

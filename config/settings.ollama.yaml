@@ -1,0 +1,171 @@
+### GraphRAG v3 - configuração 100% LOCAL (Ollama), sem custo de API
+### Para usar: copie este arquivo para data/settings.yaml (guarde o original) e
+### suba o Ollama com:  docker compose --profile local up -d
+### Depois baixe os modelos (ver scripts/setup.ps1 -Local).
+### Exceto pelos modelos, é idêntico a data/settings.yaml, para que os resultados
+### das duas configurações possam ser comparados.
+
+### LLM settings ###
+
+completion_models:
+  strong_model:
+    model_provider: ollama_chat
+    model: llama3.1-8k       # llama3.1:8b com num_ctx 8192 (criado pelo setup.ps1 -Local)
+    api_base: http://ollama:11434
+    auth_method: api_key
+    api_key: ollama          # valor fictício, o Ollama não valida
+    concurrent_requests: 1   # CPU não se beneficia de paralelismo aqui
+    async_mode: asyncio
+    max_retries: 5
+    retry:
+      type: exponential_backoff
+    call_args:
+      temperature: 1
+      timeout: 1800          # CPU pode demorar, dê folga generosa
+
+  cheap_model:               # localmente, o mesmo modelo atende as duas funções
+    model_provider: ollama_chat
+    model: llama3.1-8k
+    api_base: http://ollama:11434
+    auth_method: api_key
+    api_key: ollama
+    concurrent_requests: 1
+    async_mode: asyncio
+    max_retries: 5
+    retry:
+      type: exponential_backoff
+    call_args:
+      temperature: 1
+      timeout: 1800
+
+embedding_models:
+  default_embedding_model:
+    model_provider: ollama
+    model: nomic-embed-text
+    api_base: http://ollama:11434
+    auth_method: api_key
+    api_key: ollama
+    concurrent_requests: 1
+    retry:
+      type: exponential_backoff
+
+### Document processing settings ###
+
+## Entrada: CDC estruturado (um objeto JSON por artigo), gerado por
+## corpus/parser/legislation_parser.py a partir de corpus/raw/cdc_planalto.txt.
+## O parser garante ids únicos (ex.: cdc_art_54-A), usados como ids dos documentos.
+input:
+  type: json
+  file_pattern: ".*\\.json$"
+  id_column: id
+  title_column: id
+  text_column: text
+
+## Cada artigo cabe inteiro em um chunk (maior artigo ~ 900 tokens).
+## prepend_metadata injeta a hierarquia da lei no início de cada chunk, dando ao
+## LLM o contexto de Título/Capítulo/Seção na extração, e a situação do artigo
+## (vigente/vetado/revogado), para que vetos sejam registrados corretamente no grafo.
+chunking:
+  type: tokens
+  size: 1200
+  overlap: 100
+  encoding_model: o200k_base
+  prepend_metadata: [lei_sigla, titulo_nome, capitulo_nome, secao_nome, situacao]
+
+### Storage settings ###
+
+input_storage:
+  type: file
+  base_dir: "input"
+
+output_storage:
+  type: file
+  base_dir: "output"
+
+reporting:
+  type: file
+  base_dir: "logs"
+
+cache:
+  type: json
+  storage:
+    type: file
+    base_dir: "cache"
+
+vector_store:
+  type: lancedb
+  db_uri: output/lancedb   # barra normal: o caminho é resolvido dentro do container Linux
+
+### Workflow settings (indexação) ###
+
+embed_text:
+  embedding_model_id: default_embedding_model
+
+# Etapa mais importante e mais cara: define a qualidade do grafo.
+extract_graph:
+  completion_model_id: strong_model
+  prompt: "prompts/extract_graph.txt"
+  entity_types: [artigo, direito, obrigacao, sancao, orgao_fiscalizador, relacao_consumo, fornecedor, consumidor]
+  max_gleanings: 1
+
+# Tarefa simples (fundir descrições de uma mesma entidade): modelo barato basta.
+summarize_descriptions:
+  completion_model_id: cheap_model
+  prompt: "prompts/summarize_descriptions.txt"
+  max_length: 500
+
+extract_graph_nlp:
+  text_analyzer:
+    extractor_type: regex_english
+
+cluster_graph:
+  max_cluster_size: 10
+
+extract_claims:
+  enabled: false
+  completion_model_id: cheap_model
+  prompt: "prompts/extract_claims.txt"
+  description: "Any claims or facts that could be relevant to information discovery."
+  max_gleanings: 1
+
+# Relatórios de comunidade são a base da busca global: vale usar o modelo forte.
+community_reports:
+  completion_model_id: strong_model
+  graph_prompt: "prompts/community_report_graph.txt"
+  text_prompt: "prompts/community_report_text.txt"
+  max_length: 2000
+  max_input_length: 8000
+
+snapshots:
+  graphml: false
+  embeddings: false
+
+### Query settings ###
+
+local_search:
+  completion_model_id: strong_model
+  embedding_model_id: default_embedding_model
+  prompt: "prompts/local_search_system_prompt.txt"
+
+# A busca global faz uma chamada "map" por lote de relatórios; o custo é dominado
+# por essas chamadas. Se quiser economizar, troque para cheap_model.
+global_search:
+  completion_model_id: strong_model
+  map_prompt: "prompts/global_search_map_system_prompt.txt"
+  reduce_prompt: "prompts/global_search_reduce_system_prompt.txt"
+  knowledge_prompt: "prompts/global_search_knowledge_system_prompt.txt"
+
+# Os modelos GPT-6 (de raciocínio) só aceitam temperature=1; o padrão da busca
+# DRIFT é 0, o que gera erro "Unsupported value: 'temperature'".
+drift_search:
+  completion_model_id: strong_model
+  embedding_model_id: default_embedding_model
+  local_search_temperature: 1
+  reduce_temperature: 1
+  prompt: "prompts/drift_search_system_prompt.txt"
+  reduce_prompt: "prompts/drift_reduce_prompt.txt"
+
+basic_search:
+  completion_model_id: strong_model
+  embedding_model_id: default_embedding_model
+  prompt: "prompts/basic_search_system_prompt.txt"

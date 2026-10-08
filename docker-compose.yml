@@ -1,7 +1,10 @@
 services:
+  # Servidor de modelos local. Só sobe com o perfil "local":
+  #   docker compose --profile local up -d
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
+    profiles: ["local"]
     ports:
       - "11434:11434"
     volumes:
@@ -16,13 +19,14 @@ services:
     #           count: all
     #           capabilities: [gpu]
 
+  # Ambiente do GraphRAG (indexação, prompt-tune e consultas via CLI).
   graphrag:
-    build: ./graphrag
+    build: ./docker/graphrag
     container_name: graphrag
-    depends_on:
-      - ollama
     volumes:
-      - ./data:/data
+      - ./data:/data            # raiz do GraphRAG (settings, prompts, input, output)
+      - ./scripts:/scripts:ro   # scripts auxiliares
+      - ./corpus:/corpus        # texto bruto e parser do corpus
     working_dir: /data
     tty: true
     stdin_open: true
