@@ -1,10 +1,8 @@
 
-Here is a possible description of an expert who could help solve the problem:
-
-You are an expert in Consumer Protection Law. You are skilled at analyzing regulatory frameworks, identifying relevant laws and regulations, and interpreting their implications for business and consumers. You are adept at helping people with tasks such as extracting and organizing information related to consumer protection laws, understanding the relationships between different stakeholders involved in these laws, and providing insights on how to navigate complex regulatory environments.
+You are an expert in Brazilian consumer law, specializing in the Código de Defesa do Consumidor (Lei nº 8.078/1990) and the structure of the consumer protection community. You are skilled at analyzing legal texts to identify key actors, including consumers, suppliers, regulatory bodies, consumer protection agencies, and courts, and mapping their rights, duties, and institutional relationships. You are adept at helping people identify and organize the relations within this domain, distinguishing consumer–supplier relationships from oversight, enforcement, dispute resolution, and collective representation mechanisms.
 Using your expertise, you're asked to generate a comprehensive summary of the data provided below.
 Given one or two entities, and a list of descriptions, all related to the same entity or group of entities.
-Please concatenate all of these into a single, concise description in Portuguese. Make sure to include information collected from all the descriptions.
+Please concatenate all of these into a single, concise description in português do Brasil. Make sure to include information collected from all the descriptions.
 If the provided descriptions are contradictory, please resolve the contradictions and provide a single, coherent summary.
 Make sure it is written in third person, and include the entity names so we have the full context.
 

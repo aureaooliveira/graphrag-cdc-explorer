@@ -5,7 +5,7 @@ Given a text document that is potentially relevant to this activity and a list o
 -Steps-
 1. Identify all entities. For each identified entity, extract the following information:
 - entity_name: Name of the entity, capitalized
-- entity_type: One of the following types: [law, consumer, business, government, product, service]
+- entity_type: One of the following types: [consumidor, fornecedor, orgao_entidade, produto, servico, contrato, direito, obrigacao, pratica_abusiva, instituto_juridico, sancao_administrativa, infracao_penal, instrumento_processual, dispositivo_legal]
 - entity_description: Comprehensive description of the entity's attributes and activities
 Format each entity as ("entity"<|><entity_name><|><entity_type><|><entity_description>)
 
@@ -17,161 +17,717 @@ For each pair of related entities, extract the following information:
 - relationship_strength: an integer score between 1 to 10, indicating strength of the relationship between the source entity and target entity
 Format each relationship as ("relationship"<|><source_entity><|><target_entity><|><relationship_description><|><relationship_strength>)
 
-3. Return output in Portuguese as a single list of all the entities and relationships identified in steps 1 and 2. Use **##** as the list delimiter.
+3. Return output in português do Brasil as a single list of all the entities and relationships identified in steps 1 and 2. Use **##** as the list delimiter.
 
-4. If you have to translate into Portuguese, just translate the descriptions, nothing else!
+4. If you have to translate into português do Brasil, just translate the descriptions, nothing else!
 
 5. When finished, output <|COMPLETE|>.
+
+-Definições dos tipos de entidade-
+- consumidor: consumidor e equiparados (coletividade de pessoas, vítimas do evento, pessoas expostas às práticas comerciais), incluindo o consumidor superendividado.
+- fornecedor: quem fornece produtos ou serviços: fabricante, produtor, construtor, importador, comerciante, prestador de serviço, fornecedor de crédito, intermediário.
+- orgao_entidade: órgãos e entidades públicos ou privados que atuam na defesa do consumidor: Procon, Sistema Nacional de Defesa do Consumidor, Ministério Público, Defensoria Pública, União, Estados, Municípios, Poder Judiciário, associações de defesa do consumidor.
+- produto: bens objeto da relação de consumo: móveis ou imóveis, materiais ou imateriais, duráveis ou não duráveis, perigosos ou nocivos, peças de reposição.
+- servico: atividades fornecidas mediante remuneração, inclusive bancárias, financeiras, de crédito, securitárias e serviços públicos.
+- contrato: contratos de consumo e seus elementos: contrato de adesão, cláusulas contratuais, garantia legal e contratual, crédito, financiamento, compra e venda a prazo.
+- direito: direitos assegurados ao consumidor: direitos básicos, direito de arrependimento, direito à informação, à reparação de danos, à repactuação de dívidas.
+- obrigacao: deveres impostos ao fornecedor ou ao poder público: informar, reparar, sanar o vício, manter peças de reposição, cumprir a oferta.
+- pratica_abusiva: condutas vedadas ao fornecedor: práticas abusivas, publicidade enganosa ou abusiva, cobrança vexatória de dívidas, cláusulas abusivas.
+- instituto_juridico: princípios e conceitos jurídicos: princípios da Política Nacional das Relações de Consumo (vulnerabilidade, boa-fé, harmonização), relação de consumo, responsabilidade objetiva e solidária, fato e vício do produto ou serviço, decadência e prescrição, desconsideração da personalidade jurídica, inversão do ônus da prova, superendividamento, mínimo existencial.
+- sancao_administrativa: sanções aplicadas pela administração pública: multa, apreensão, inutilização, cassação de registro ou licença, interdição, intervenção, contrapropaganda.
+- infracao_penal: crimes contra as relações de consumo tipificados no código e suas penas.
+- instrumento_processual: meios de defesa do consumidor em juízo: ações coletivas, ação civil pública, defesa de interesses difusos, coletivos e individuais homogêneos, coisa julgada, liquidação e execução, conciliação e processo por superendividamento.
+- dispositivo_legal: artigos do CDC e de outras normas citadas no texto: Constituição Federal, Código Penal, Código de Processo Civil, outras leis.
+
+-Regras de nomeação das entidades-
+1. Escreva os nomes das entidades em MAIÚSCULAS, no singular, em português e sem artigo inicial (CONSUMIDOR, e não O CONSUMIDOR).
+2. Use os termos do próprio CDC, sem sinônimos (FORNECEDOR, e não EMPRESA; PRODUTO, e não MERCADORIA).
+3. Nomeie artigos do CDC como ART. 6º DO CDC, ART. 54-A DO CDC ou ART. 10 DO CDC (ordinal até o nono artigo, cardinal a partir do décimo). Use o artigo como unidade: parágrafos, incisos e alíneas vão na descrição, não no nome.
+4. Nomeie outras normas pelo nome usual ou pelo número com ano de quatro dígitos: CONSTITUIÇÃO FEDERAL, CÓDIGO PENAL, LEI Nº 7.347/1985.
+5. Prazos não são entidades: registre-os na descrição do direito, da obrigação ou do instituto a que se referem (por exemplo, a decadência em 30 ou 90 dias).
+6. Se o artigo estiver vetado ou revogado (situacao no cabeçalho do trecho), crie a entidade do dispositivo e registre o veto ou a revogação na descrição.
 
 -Examples-
 ######################
 
 Example 1:
 
-entity_types: [law, consumer, business, government, product, service]
+entity_types: [consumidor, fornecedor, orgao_entidade, produto, servico, contrato, direito, obrigacao, pratica_abusiva, instituto_juridico, sancao_administrativa, infracao_penal, instrumento_processual, dispositivo_legal]
 text:
- O PRESIDENTE DA REPÚBLICA, faço saber que o Congresso Nacional decreta e eu sanciono a seguinte lei:
+lei_sigla: CDC.
+titulo_nome: Dos Direitos do Consumidor.
+capitulo_nome: Dos Direitos Básicos do Consumidor.
+situacao: vigente.
+Art. 6º São direitos básicos do consumidor:
 
-TÍTULO I
-Dos Direitos do Consumidor
+I - a proteção da vida, saúde e segurança contra os riscos provocados por práticas no fornecimento de produtos e serviços considerados perigosos ou nocivos;
 
-CAPÍTULO I
-Disposições Gerais
+II - a educação e divulgação sobre o consumo adequado dos produtos e serviços, asseguradas a liberdade de escolha e a igualdade nas contratações;
 
-        Art. 1° O presente código estabelece normas de proteção e defesa do consumidor, de ordem pública e interesse social, nos termos dos arts. 5°, inciso XXXII, 170, inciso V, da Constituição Federal e art. 48 de suas Disposições Transitórias.
+III - a informação adequada e clara sobre os diferentes produtos e serviços, com especificação correta de quantidade, características, composição, qualidade, tributos incidentes e preço, bem como sobre os riscos que apresentem;             (Redação dada pela Lei nº 12.741, de 2012)   Vigência
 
-        Art. 2° Consumidor é toda pessoa física ou jurídica que adquire ou utiliza produto ou serviço como destinatário final.
+IV - a proteção contra a publicidade enganosa e abusiva, métodos comerciais coercitivos ou desleais, bem como contra práticas e cláusulas abusivas ou impostas no fornecimento de produtos e serviços;
 
-        Parágrafo único. Equipara-se a consumidor a coletividade de pessoas, ainda que indetermináveis, que haja intervindo nas relações de consumo.
+V - a modificação das cláusulas contratuais que estabeleçam prestações desproporcionais ou sua revisão em razão de fatos supervenientes que as tornem excessivamente onerosas;
 
-        Art. 3° Fornecedor é toda pessoa física ou jurídica, pública ou privada, nacional ou estrangeira, bem como os entes despersonalizados, que desenvolvem atividade de produção, montagem, criação, construção, transformação, importação, exportação, distribuição ou comercialização de produtos ou prestação de serviços.
+VI - a efetiva prevenção e reparação de danos patrimoniais e morais, individuais, coletivos e difusos;
 
-        § 1° Produto é qualquer bem, móvel ou imóvel, material ou imaterial.
+VII - o acesso aos órgãos judiciários e administrativos com vistas à prevenção ou reparação de danos patrimoniais e morais, individuais, coletivos ou difusos, assegurada a proteção Jurídica, administrativa e técnica aos necessitados;
 
-        § 2° Serviço é qualquer atividade fornecida no mercado de consumo, mediante remuneração, inclusive as de natureza bancária, financeira, de crédito e securitária, salvo as decorrentes das relações de caráter trabalhista.
+VIII - a facilitação da defesa de seus direitos, inclusive com a inversão do ônus da prova, a seu favor, no processo civil, quando, a critério do juiz, for verossímil a alegação ou quando for ele hipossuficiente, segundo as regras ordinárias de experiências;
 
-CAPÍTULO II
-Da Política Nacional de Relações de Consumo
+IX - (Vetado);
 
-        Art. 4º A Política Nacional das Relações de Consumo tem por objetivo o atendimento das necessidades dos consumidores, o respeito à sua dignidade, saúde e segurança, a proteção de seus interesses econômicos, a melhoria da sua qualidade de vida, bem como a transparência e harmonia das relações de consumo, atendidos os seguintes princípios:             (Redação dada pela Lei nº 9.008, de 21.3.1995)
+X - a adequada e eficaz prestação dos serviços públicos em geral.
 
-        I - reconhecimento da vulnerabilidade do consumidor no mercado de consumo;
+XI - a garantia de práticas de crédito responsável, de educação financeira e de prevenção e tratamento de situações de superendividamento, preservado o mínimo existencial, nos termos da regulamentação, por meio da revisão e da repactuação da dívida, entre outras medidas;       (Incluído pela Lei nº 14.181, de 2021)
 
-        II - ação governamental no sentido de proteger efetivamente o consumidor:
+XII - a preservação do mínimo existencial, nos termos da regulamentação, na repactuação de dívidas e na concessão de crédito;        (Incluído pela Lei nº 14.181, de 2021)
 
-        a) por iniciativa direta;
+XIII - a informação acerca dos preços dos produtos por unidade de medida, tal como por quilo, por litro, por metro ou por outra unidade, conforme o caso.      (Incluído pela Lei nº 14.181, de 2021)
 
-        b) por incentivos à criação e desenvolvimento de associações representativas;
-
-        c) pela presença do Estado no mercado de consumo;
-
-        d) pela garantia dos produtos e serviços com padrões adequados de qualidade, segurança, durabilidade e desempenho.
-
-        III - harmonização dos interesses dos participantes das relações de consumo e compatibilização da proteção do consumidor com a necessidade de desenvolvimento econômico e tecnológico, de modo a viabilizar os princípios nos quais se funda a ordem econômica (art. 170, da Constituição Federal), sempre com base na boa-fé e equilíbrio nas relações entre consumidores e fornecedores;
-
-        IV - educação e informação de fornecedores e consumidores, quanto aos seus direitos e deveres, com vistas à melhoria do mercado de consumo;
-
-        V - incentivo à criação pelos fornecedores de meios eficientes de controle de qualidade e segurança de produtos e serviços, assim como de mecanismos alternativos de solução de conflitos de consumo;
-
-        VI - coibição e repressão eficientes de todos os abusos praticados no mercado de consumo, inclusive a concorrência desleal e utilização indevida de inventos e criações industriais das marcas e nomes comerciais e signos distintivos, que possam causar prejuízos aos consumidores;
-
-        VII - racionalização e melhoria dos serviços públicos;
-
-        VIII - estudo constante das modificações do mercado de consumo.
-
-        IX - fomento de ações direcionadas à educação financeira e ambiental dos consumidores;     (Incluído pela Lei nº 14.181, de 2021)
-
-        X - prevenção e tratamento do superendividamento como forma de evitar a exclusão social do consumidor.       (Incluído pela Lei nº 14.181, de 2021)
-
-        Art. 5° Para a execução da Política Nacional das Relações de Consumo, contará o poder público com os seguintes instrumentos, entre outros:
-
-        I - manutenção de assistência jurídica, integral e gratuita para o consumidor carente;
-
-        II - instituição de Promotorias de Justiça de Defesa do Consumidor, no âmbito do Ministério Público;
-
-        III - criação de delegacias de polícia especializadas no atendimento de consumidores vítimas de infrações penais de consumo;
-
-        IV - criação de Juizados Especiais de Pequenas Causas e Varas Especializadas para a solução de litígios de consumo;
-
-        V - concessão de estímulos à criação e desenvolvimento das Associações de Defesa do Consumidor.
-
-        VI - instituição de mecanismos de prevenção e tratamento extrajudicial e judicial do superendividamento e de proteção do consumidor pessoa natural;       (In
+Parágrafo único.  A informação de que trata o inciso III do caput deste artigo deve ser acessível à pessoa com deficiência, observado o disposto em regulamento.              (Incluído pela Lei nº 13.146, de 2015)    (Vigência)
 ------------------------
 output:
-Based on the provided text, I will perform the required tasks:
-
-**Step 1: Identify all entities**
-
-After analyzing the text, I have identified the following entities:
-
-("entity"<|>CONGRESSO NACIONAL<|>GOVERNMENT<|>The Congresso Nacional is a part of the government)
+("entity"<|>ART. 82 DO CDC<|>dispositivo_legal<|>Dispositivo vigente que estabelece os legitimados concorrentes para a defesa dos interesses e direitos referidos no art. 81, parágrafo único. Define requisitos para associações e permite ao juiz dispensar a pré-constituição nas condições do § 1º. O caput recebeu redação da Lei nº 9.008/1995; os §§ 2º e 3º foram vetados.)
 ##
-("entity"<|>PRESIDENTE DA REPÚBLICA<|>PERSON<|>The Presidente da República is the head of state and government)
+("entity"<|>ART. 81 DO CDC<|>dispositivo_legal<|>Dispositivo cujo parágrafo único é expressamente referido como delimitação dos interesses e direitos para cuja defesa se aplica a legitimação concorrente prevista no art. 82.)
 ##
-("entity"<|>CONSTITUIÇÃO FEDERAL<|>LAW<|>The Constituição Federal is the supreme law of the land)
+("entity"<|>ART. 91 DO CDC<|>dispositivo_legal<|>Dispositivo citado, juntamente com os artigos seguintes, para identificar as ações nas quais o juiz pode dispensar o requisito de pré-constituição das associações, observadas as condições do art. 82, § 1º.)
 ##
-("entity"<|>CÓDIGO DE DEFESA DO CONSUMIDOR<|>LAW<|>The Código de Defesa do Consumidor is a consumer protection law)
+("entity"<|>CÓDIGO DE DEFESA DO CONSUMIDOR<|>dispositivo_legal<|>Código identificado pela sigla CDC, cujos interesses e direitos protegidos constituem o objeto da atuação dos legitimados previstos no art. 82.)
 ##
-("entity"<|>CONSUMIDOR<|>CONSUMER<|>A consumidor is a person who acquires or utilizes a product or service as the final destination)
+("entity"<|>LEI Nº 9.008/1995<|>dispositivo_legal<|>Lei de 21 de março de 1995 expressamente indicada como responsável pela redação do caput do art. 82 do CDC.)
 ##
-("entity"<|>FORNECEDOR<|>BUSINESS<|>A fornecedor is any individual or entity that develops an activity of production, transformation, or commercialization of products or services)
+("entity"<|>MINISTÉRIO PÚBLICO<|>orgao_entidade<|>Instituição expressamente legitimada, de forma concorrente, para a defesa dos interesses e direitos referidos no art. 81, parágrafo único, do CDC.)
 ##
-("entity"<|>PRODUTO<|>PRODUCT<|>A produto is a good, either material or immaterial)
+("entity"<|>UNIÃO<|>orgao_entidade<|>Ente federativo legitimado concorrentemente para a defesa dos interesses e direitos abrangidos pela remissão ao art. 81, parágrafo único, do CDC.)
 ##
-("entity"<|>SERVICIO<|>SERVICE<|>A serviço is any activity provided in the market of consumption, including those related to finance and credit)
-
-**Step 2: Identify all pairs of related entities**
-
-After analyzing the text, I have identified the following relationships:
-
-("relationship"<|>CONGRESSO NACIONAL<|>PRESIDENTE DA REPÚBLICA<|>The Presidente da República makes known that the Congresso Nacional decreta and sanciona a law<|>10)
+("entity"<|>ESTADO<|>orgao_entidade<|>Ente federativo estadual incluído entre os legitimados concorrentes previstos no art. 82, inciso II, do CDC.)
 ##
-("relationship"<|>CONSTITUIÇÃO FEDERAL<|>CÓDIGO DE DEFESA DO CONSUMIDOR<|>The Código de Defesa do Consumidor is based on the principles of the Constituição Federal<|>9)
+("entity"<|>MUNICÍPIO<|>orgao_entidade<|>Ente federativo municipal incluído entre os legitimados concorrentes para a defesa dos interesses e direitos protegidos pelo CDC.)
 ##
-("relationship"<|>CONSUMIDOR<|>FORNECEDOR<|>A consumidor interacts with a fornecedor in the market of consumption<|>8)
+("entity"<|>DISTRITO FEDERAL<|>orgao_entidade<|>Ente federativo expressamente incluído entre os legitimados concorrentes no art. 82, inciso II, do CDC.)
 ##
-("relationship"<|>PRODUTO<|>SERVICIO<|>A produto is often accompanied by a serviço in the market of consumption<|>7)
-
-**Step 3: Return output in Portuguese as a single list of all entities and relationships identified**
-
-Here is the combined output:
-
-("entity"<|>CONGRESSO NACIONAL<|>GOVERNMENT<|>The Congresso Nacional is a part of the government)
+("entity"<|>ENTIDADE DA ADMINISTRAÇÃO PÚBLICA<|>orgao_entidade<|>Entidade da Administração Pública direta ou indireta especificamente destinada à defesa dos interesses e direitos protegidos pelo CDC, legitimada concorrentemente nos termos do inciso III, ainda que sem personalidade jurídica.)
 ##
-("entity"<|>PRESIDENTE DA REPÚBLICA<|>PERSON<|>The Presidente da República is the head of state and government)
+("entity"<|>ÓRGÃO DA ADMINISTRAÇÃO PÚBLICA<|>orgao_entidade<|>Órgão da Administração Pública direta ou indireta especificamente destinado à defesa dos interesses e direitos protegidos pelo CDC, legitimado concorrentemente mesmo sem personalidade jurídica.)
 ##
-("entity"<|>CONSTITUIÇÃO FEDERAL<|>LAW<|>The Constituição Federal is the supreme law of the land)
+("entity"<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>orgao_entidade<|>Associação que inclua entre seus fins institucionais a defesa dos interesses e direitos protegidos pelo CDC e esteja legalmente constituída há pelo menos um ano. Sua legitimação dispensa autorização assemblear, e o requisito temporal pode ser dispensado judicialmente nas hipóteses do § 1º.)
 ##
-("entity"<|>CÓDIGO DE DEFESA DO CONSUMIDOR<|>LAW<|>The Código de Defesa do Consumidor is a consumer protection law)
+("entity"<|>PODER JUDICIÁRIO<|>orgao_entidade<|>Órgão estatal referido no trecho pela atuação do juiz, a quem compete avaliar a dispensa do requisito de pré-constituição da associação nas ações previstas no art. 91 e seguintes.)
 ##
-("entity"<|>CONSUMIDOR<|>CONSUMER<|>A consumidor is a person who acquires or utilizes a product or service as the final destination)
+("entity"<|>LEGITIMAÇÃO CONCORRENTE<|>instituto_juridico<|>Legitimação atribuída simultaneamente aos sujeitos enumerados no art. 82 para a defesa dos interesses e direitos referidos no art. 81, parágrafo único, sem exclusividade de um único legitimado.)
 ##
-("entity"<|>FORNECEDOR<|>BUSINESS<|>A fornecedor is any individual or entity that develops an activity of production, transformation, or commercialization of products or services)
+("entity"<|>REQUISITO DE PRÉ-CONSTITUIÇÃO<|>instituto_juridico<|>Exigência de que a associação esteja legalmente constituída há pelo menos um ano para integrar o rol de legitimados. Pode ser dispensada pelo juiz nas ações previstas no art. 91 e seguintes quando houver manifesto interesse social nas condições legais.)
 ##
-("entity"<|>PRODUTO<|>PRODUCT<|>A produto is a good, either material or immaterial)
+("entity"<|>DISPENSA DO REQUISITO DE PRÉ-CONSTITUIÇÃO<|>instituto_juridico<|>Possibilidade de afastamento judicial da exigência temporal de constituição da associação nas ações previstas no art. 91 e seguintes, quando o manifesto interesse social for evidenciado pela dimensão ou característica do dano ou pela relevância do bem jurídico protegido.)
 ##
-("entity"<|>SERVICIO<|>SERVICE<|>A serviço is any activity provided in the market of consumption, including those related to finance and credit)
+("entity"<|>MANIFESTO INTERESSE SOCIAL<|>instituto_juridico<|>Fundamento da dispensa judicial do requisito de pré-constituição, evidenciado pela dimensão ou característica do dano ou pela relevância do bem jurídico a ser protegido.)
 ##
-("relationship"<|>CONGRESSO NACIONAL<|>PRESIDENTE DA REPÚBLICA<|>The Presidente da República makes known that the Congresso Nacional decreta and sanciona a law<|>10)
+("entity"<|>DEFESA COLETIVA DO CONSUMIDOR EM JUÍZO<|>instrumento_processual<|>Defesa judicial dos interesses e direitos abrangidos pelo art. 81, parágrafo único, para a qual o art. 82 estabelece legitimados concorrentes.)
 ##
-("relationship"<|>CONSTITUIÇÃO FEDERAL<|>CÓDIGO DE DEFESA DO CONSUMIDOR<|>The Código de Defesa do Consumidor is based on the principles of the Constituição Federal<|>9)
+("entity"<|>AÇÃO PREVISTA NO ART. 91 E SEGUINTES DO CDC<|>instrumento_processual<|>Ação abrangida pela remissão do art. 82, § 1º, ao art. 91 e seguintes, na qual se admite dispensar judicialmente o requisito de pré-constituição da associação diante de manifesto interesse social.)
 ##
-("relationship"<|>CONSUMIDOR<|>FORNECEDOR<|>A consumidor interacts with a fornecedor in the market of consumption<|>8)
+("relationship"<|>CÓDIGO DE DEFESA DO CONSUMIDOR<|>ART. 82 DO CDC<|>O art. 82 integra o CDC e disciplina os legitimados para a defesa dos interesses e direitos por ele protegidos.<|>10)
 ##
-("relationship"<|>PRODUTO<|>SERVICIO<|>A produto is often accompanied by a serviço in the market of consumption<|>7)
-
-**Step 4: Output `<|COMPLETE|>`**
-
+("relationship"<|>CÓDIGO DE DEFESA DO CONSUMIDOR<|>ART. 81 DO CDC<|>O art. 81 integra o CDC e é referido para delimitar o objeto da legitimação prevista no art. 82.<|>10)
+##
+("relationship"<|>CÓDIGO DE DEFESA DO CONSUMIDOR<|>ART. 91 DO CDC<|>O art. 91 integra o CDC e é citado na regra de dispensa da pré-constituição das associações.<|>10)
+##
+("relationship"<|>LEI Nº 9.008/1995<|>ART. 82 DO CDC<|>A lei é expressamente indicada como responsável pela redação do caput do art. 82.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ART. 81 DO CDC<|>O caput do art. 82 estabelece os legitimados para os fins do parágrafo único do art. 81.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ART. 91 DO CDC<|>O § 1º do art. 82 remete ao art. 91 e seguintes para definir as ações em que pode ser dispensado o requisito de pré-constituição.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>MINISTÉRIO PÚBLICO<|>O inciso I inclui o Ministério Público entre os legitimados concorrentes.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>UNIÃO<|>O inciso II inclui a União entre os legitimados concorrentes.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ESTADO<|>O inciso II inclui os Estados entre os legitimados concorrentes.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>MUNICÍPIO<|>O inciso II inclui os Municípios entre os legitimados concorrentes.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>DISTRITO FEDERAL<|>O inciso II inclui o Distrito Federal entre os legitimados concorrentes.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ENTIDADE DA ADMINISTRAÇÃO PÚBLICA<|>O inciso III legitima as entidades públicas especificamente destinadas à defesa dos interesses e direitos protegidos pelo CDC, ainda que sem personalidade jurídica.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ÓRGÃO DA ADMINISTRAÇÃO PÚBLICA<|>O inciso III legitima os órgãos públicos especificamente destinados à defesa dos interesses e direitos protegidos pelo CDC, mesmo sem personalidade jurídica.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>O inciso IV estabelece os requisitos de constituição e finalidade institucional para a legitimação das associações e dispensa autorização assemblear.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>PODER JUDICIÁRIO<|>O § 1º atribui ao juiz a possibilidade de dispensar o requisito de pré-constituição nas condições previstas.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>LEGITIMAÇÃO CONCORRENTE<|>O caput estabelece expressamente a natureza concorrente da legitimação dos sujeitos enumerados.<|>10)
+##
+("relationship"<|>MINISTÉRIO PÚBLICO<|>LEGITIMAÇÃO CONCORRENTE<|>O Ministério Público possui a legitimação concorrente prevista no inciso I.<|>10)
+##
+("relationship"<|>UNIÃO<|>LEGITIMAÇÃO CONCORRENTE<|>A União possui a legitimação concorrente prevista no inciso II.<|>10)
+##
+("relationship"<|>ESTADO<|>LEGITIMAÇÃO CONCORRENTE<|>Os Estados possuem a legitimação concorrente prevista no inciso II.<|>10)
+##
+("relationship"<|>MUNICÍPIO<|>LEGITIMAÇÃO CONCORRENTE<|>Os Municípios possuem a legitimação concorrente prevista no inciso II.<|>10)
+##
+("relationship"<|>DISTRITO FEDERAL<|>LEGITIMAÇÃO CONCORRENTE<|>O Distrito Federal possui a legitimação concorrente prevista no inciso II.<|>10)
+##
+("relationship"<|>ENTIDADE DA ADMINISTRAÇÃO PÚBLICA<|>LEGITIMAÇÃO CONCORRENTE<|>A entidade pública especificamente destinada à defesa do consumidor integra o rol de legitimados concorrentes do inciso III.<|>10)
+##
+("relationship"<|>ÓRGÃO DA ADMINISTRAÇÃO PÚBLICA<|>LEGITIMAÇÃO CONCORRENTE<|>O órgão público especificamente destinado à defesa do consumidor integra o rol de legitimados concorrentes do inciso III.<|>10)
+##
+("relationship"<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>LEGITIMAÇÃO CONCORRENTE<|>A associação integra o rol de legitimados concorrentes quando satisfaz os requisitos legais, ressalvada a dispensa judicial do requisito temporal.<|>10)
+##
+("relationship"<|>LEGITIMAÇÃO CONCORRENTE<|>DEFESA COLETIVA DO CONSUMIDOR EM JUÍZO<|>A legitimação concorrente permite aos sujeitos enumerados atuar na defesa dos interesses e direitos abrangidos pelo art. 81, parágrafo único.<|>10)
+##
+("relationship"<|>ART. 81 DO CDC<|>DEFESA COLETIVA DO CONSUMIDOR EM JUÍZO<|>A remissão ao parágrafo único do art. 81 delimita os interesses e direitos objeto dessa defesa.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>DEFESA COLETIVA DO CONSUMIDOR EM JUÍZO<|>O artigo identifica os sujeitos legitimados para promover essa defesa.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>REQUISITO DE PRÉ-CONSTITUIÇÃO<|>O inciso IV exige constituição legal da associação há pelo menos um ano, e o § 1º prevê a possibilidade de dispensa.<|>10)
+##
+("relationship"<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>REQUISITO DE PRÉ-CONSTITUIÇÃO<|>A exigência de pré-constituição recai sobre a associação que pretende atuar como legitimada.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>DISPENSA DO REQUISITO DE PRÉ-CONSTITUIÇÃO<|>O § 1º autoriza a dispensa judicial do requisito nas ações e condições especificadas.<|>10)
+##
+("relationship"<|>PODER JUDICIÁRIO<|>DISPENSA DO REQUISITO DE PRÉ-CONSTITUIÇÃO<|>Cabe ao juiz decidir sobre a dispensa do requisito de pré-constituição.<|>10)
+##
+("relationship"<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>DISPENSA DO REQUISITO DE PRÉ-CONSTITUIÇÃO<|>A associação pode beneficiar-se do afastamento judicial da exigência temporal de constituição.<|>10)
+##
+("relationship"<|>REQUISITO DE PRÉ-CONSTITUIÇÃO<|>DISPENSA DO REQUISITO DE PRÉ-CONSTITUIÇÃO<|>A dispensa afasta, nas hipóteses legais, a exigência de constituição da associação há pelo menos um ano.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>MANIFESTO INTERESSE SOCIAL<|>O § 1º exige manifesto interesse social, evidenciado pelos critérios legais, para a dispensa do requisito de pré-constituição.<|>10)
+##
+("relationship"<|>MANIFESTO INTERESSE SOCIAL<|>DISPENSA DO REQUISITO DE PRÉ-CONSTITUIÇÃO<|>O manifesto interesse social fundamenta a dispensa quando evidenciado pela dimensão ou característica do dano ou pela relevância do bem jurídico protegido.<|>10)
+##
+("relationship"<|>PODER JUDICIÁRIO<|>MANIFESTO INTERESSE SOCIAL<|>O juiz avalia a presença do manifesto interesse social para decidir sobre a dispensa.<|>9)
+##
+("relationship"<|>ART. 82 DO CDC<|>AÇÃO PREVISTA NO ART. 91 E SEGUINTES DO CDC<|>O § 1º delimita a essas ações a possibilidade de dispensa do requisito de pré-constituição.<|>10)
+##
+("relationship"<|>ART. 91 DO CDC<|>AÇÃO PREVISTA NO ART. 91 E SEGUINTES DO CDC<|>O art. 91 constitui o marco inicial da remissão às ações mencionadas no § 1º do art. 82.<|>10)
+##
+("relationship"<|>AÇÃO PREVISTA NO ART. 91 E SEGUINTES DO CDC<|>DISPENSA DO REQUISITO DE PRÉ-CONSTITUIÇÃO<|>Nessas ações, o juiz pode dispensar o requisito temporal de constituição da associação quando presentes as condições legais.<|>10)
+##
+("relationship"<|>AÇÃO PREVISTA NO ART. 91 E SEGUINTES DO CDC<|>DEFESA COLETIVA DO CONSUMIDOR EM JUÍZO<|>As ações mencionadas integram os meios judiciais de defesa dos interesses e direitos protegidos pelo CDC aos quais se aplica a regra de legitimação.<|>9)
 <|COMPLETE|>
+#############################
 
-Note that I have translated the descriptions and labels as required.
+
+Example 2:
+
+entity_types: [consumidor, fornecedor, orgao_entidade, produto, servico, contrato, direito, obrigacao, pratica_abusiva, instituto_juridico, sancao_administrativa, infracao_penal, instrumento_processual, dispositivo_legal]
+text:
+lei_sigla: CDC.
+titulo_nome: Dos Direitos do Consumidor.
+capitulo_nome: Da Qualidade de Produtos e Serviços, da Prevenção e da Reparação dos Danos.
+secao_nome: Da Responsabilidade pelo Fato do Produto e do Serviço.
+situacao: vigente.
+Art. 12. O fabricante, o produtor, o construtor, nacional ou estrangeiro, e o importador respondem, independentemente da existência de culpa, pela reparação dos danos causados aos consumidores por defeitos decorrentes de projeto, fabricação, construção, montagem, fórmulas, manipulação, apresentação ou acondicionamento de seus produtos, bem como por informações insuficientes ou inadequadas sobre sua utilização e riscos.
+
+§ 1° O produto é defeituoso quando não oferece a segurança que dele legitimamente se espera, levando-se em consideração as circunstâncias relevantes, entre as quais:
+
+I - sua apresentação;
+
+II - o uso e os riscos que razoavelmente dele se esperam;
+
+III - a época em que foi colocado em circulação.
+
+§ 2º O produto não é considerado defeituoso pelo fato de outro de melhor qualidade ter sido colocado no mercado.
+
+§ 3° O fabricante, o construtor, o produtor ou importador só não será responsabilizado quando provar:
+
+I - que não colocou o produto no mercado;
+
+II - que, embora haja colocado o produto no mercado, o defeito inexiste;
+
+III - a culpa exclusiva do consumidor ou de terceiro.
+------------------------
+output:
+("entity"<|>CÓDIGO DE DEFESA DO CONSUMIDOR<|>dispositivo_legal<|>Código identificado pela sigla CDC, cujos interesses e direitos protegidos delimitam a atuação dos legitimados à defesa coletiva em juízo.)
+##
+("entity"<|>ART. 82 DO CDC<|>dispositivo_legal<|>Dispositivo vigente que estabelece os legitimados concorrentes para os fins do art. 81, parágrafo único. Prevê requisitos para associações e a possibilidade de dispensa judicial da pré-constituição nas ações previstas nos arts. 91 e seguintes. Seu caput recebeu redação da Lei nº 9.008/1995; os §§ 2º e 3º foram vetados.)
+##
+("entity"<|>ART. 81 DO CDC<|>dispositivo_legal<|>Dispositivo expressamente referido pelo art. 82, que remete ao seu parágrafo único para delimitar os fins da legitimação concorrente.)
+##
+("entity"<|>ART. 91 DO CDC<|>dispositivo_legal<|>Dispositivo citado como referência inicial das ações para as quais o juiz pode dispensar o requisito de pré-constituição das associações, nas condições estabelecidas pelo art. 82, § 1º.)
+##
+("entity"<|>LEI Nº 9.008/1995<|>dispositivo_legal<|>Lei de 21 de março de 1995 indicada como responsável pela redação do caput do art. 82 do CDC.)
+##
+("entity"<|>MINISTÉRIO PÚBLICO<|>orgao_entidade<|>Instituição expressamente legitimada, de forma concorrente, para a defesa em juízo dos interesses e direitos abrangidos pela remissão ao art. 81, parágrafo único, do CDC.)
+##
+("entity"<|>UNIÃO<|>orgao_entidade<|>Ente federativo incluído entre os legitimados concorrentes previstos no art. 82, inciso II, do CDC.)
+##
+("entity"<|>ESTADO<|>orgao_entidade<|>Ente federativo incluído entre os legitimados concorrentes previstos no art. 82, inciso II, do CDC.)
+##
+("entity"<|>MUNICÍPIO<|>orgao_entidade<|>Ente federativo incluído entre os legitimados concorrentes previstos no art. 82, inciso II, do CDC.)
+##
+("entity"<|>DISTRITO FEDERAL<|>orgao_entidade<|>Ente federativo incluído entre os legitimados concorrentes previstos no art. 82, inciso II, do CDC.)
+##
+("entity"<|>ÓRGÃO DA ADMINISTRAÇÃO PÚBLICA<|>orgao_entidade<|>Órgão da Administração Pública direta ou indireta, ainda que sem personalidade jurídica, legitimado concorrentemente quando especificamente destinado à defesa dos interesses e direitos protegidos pelo CDC.)
+##
+("entity"<|>ENTIDADE DA ADMINISTRAÇÃO PÚBLICA<|>orgao_entidade<|>Entidade da Administração Pública direta ou indireta, abrangida pelo art. 82, inciso III, quando especificamente destinada à defesa dos interesses e direitos protegidos pelo CDC, observada a previsão de legitimação ainda que sem personalidade jurídica.)
+##
+("entity"<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>orgao_entidade<|>Associação legalmente constituída há pelo menos um ano e que inclua entre seus fins institucionais a defesa dos interesses e direitos protegidos pelo CDC. Sua legitimação independe de autorização assemblear, e o requisito temporal de pré-constituição pode ser dispensado judicialmente nas hipóteses do § 1º.)
+##
+("entity"<|>PODER JUDICIÁRIO<|>orgao_entidade<|>Instituição representada no trecho pela atuação do juiz, a quem cabe dispensar o requisito de pré-constituição das associações nas ações previstas nos arts. 91 e seguintes, quando presente manifesto interesse social nas condições legais.)
+##
+("entity"<|>LEGITIMAÇÃO CONCORRENTE<|>instituto_juridico<|>Legitimação atribuída simultaneamente aos sujeitos enumerados no art. 82 para os fins do art. 81, parágrafo único, sem exclusividade de um deles.)
+##
+("entity"<|>PRÉ-CONSTITUIÇÃO DA ASSOCIAÇÃO<|>instituto_juridico<|>Requisito de constituição legal da associação há pelo menos um ano para sua legitimação. Pode ser dispensado pelo juiz nas ações previstas nos arts. 91 e seguintes, quando houver manifesto interesse social evidenciado pela dimensão ou característica do dano ou pela relevância do bem jurídico protegido.)
+##
+("entity"<|>DISPENSA DE AUTORIZAÇÃO ASSEMBLEAR<|>instituto_juridico<|>Regra do art. 82, inciso IV, que dispensa autorização da assembleia para a atuação da associação legitimada à defesa dos interesses e direitos protegidos pelo CDC.)
+##
+("entity"<|>MANIFESTO INTERESSE SOCIAL<|>instituto_juridico<|>Condição que permite a dispensa judicial do requisito de pré-constituição nas ações previstas nos arts. 91 e seguintes, evidenciada pela dimensão ou característica do dano ou pela relevância do bem jurídico a ser protegido.)
+##
+("entity"<|>DEFESA DO CONSUMIDOR EM JUÍZO<|>instrumento_processual<|>Tutela judicial dos interesses e direitos protegidos pelo CDC, para a qual o art. 82 enumera legitimados concorrentes, com referência ao art. 81, parágrafo único.)
+##
+("entity"<|>AÇÃO PREVISTA NO ART. 91 DO CDC<|>instrumento_processual<|>Ação referida pelo art. 82, § 1º, juntamente com as previstas nos artigos seguintes, na qual pode ser dispensado o requisito de pré-constituição da associação quando houver manifesto interesse social.)
+##
+("relationship"<|>CÓDIGO DE DEFESA DO CONSUMIDOR<|>ART. 82 DO CDC<|>O art. 82 integra o CDC e disciplina a legitimação concorrente para a defesa dos interesses e direitos por ele protegidos.<|>10)
+##
+("relationship"<|>CÓDIGO DE DEFESA DO CONSUMIDOR<|>ART. 81 DO CDC<|>O art. 81 pertence ao CDC e seu parágrafo único é expressamente referido no art. 82.<|>10)
+##
+("relationship"<|>CÓDIGO DE DEFESA DO CONSUMIDOR<|>ART. 91 DO CDC<|>O art. 91 integra o CDC e é citado no § 1º do art. 82.<|>10)
+##
+("relationship"<|>LEI Nº 9.008/1995<|>ART. 82 DO CDC<|>A Lei nº 9.008/1995 deu a redação indicada para o caput do art. 82.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ART. 81 DO CDC<|>O caput do art. 82 estabelece os legitimados concorrentes para os fins do parágrafo único do art. 81.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ART. 91 DO CDC<|>O § 1º do art. 82 remete às ações previstas no art. 91 e nos artigos seguintes ao prever a dispensa da pré-constituição.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>MINISTÉRIO PÚBLICO<|>O inciso I inclui o Ministério Público entre os legitimados concorrentes.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>UNIÃO<|>O inciso II inclui a União entre os legitimados concorrentes.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ESTADO<|>O inciso II inclui os Estados entre os legitimados concorrentes.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>MUNICÍPIO<|>O inciso II inclui os Municípios entre os legitimados concorrentes.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>DISTRITO FEDERAL<|>O inciso II inclui o Distrito Federal entre os legitimados concorrentes.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ÓRGÃO DA ADMINISTRAÇÃO PÚBLICA<|>O inciso III legitima os órgãos públicos especificamente destinados à defesa dos interesses e direitos protegidos pelo CDC, ainda que sem personalidade jurídica.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ENTIDADE DA ADMINISTRAÇÃO PÚBLICA<|>O inciso III inclui as entidades da Administração Pública direta ou indireta especificamente destinadas à defesa dos interesses e direitos protegidos pelo CDC.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>O inciso IV estabelece os requisitos de legitimação das associações, dispensa autorização assemblear e, no § 1º, admite dispensa judicial da pré-constituição.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>PODER JUDICIÁRIO<|>O § 1º atribui ao juiz a possibilidade de dispensar o requisito de pré-constituição nas condições expressamente previstas.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>LEGITIMAÇÃO CONCORRENTE<|>O caput estabelece expressamente a natureza concorrente da legitimação dos sujeitos enumerados.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>PRÉ-CONSTITUIÇÃO DA ASSOCIAÇÃO<|>O inciso IV exige constituição há pelo menos um ano, e o § 1º prevê a possibilidade de dispensa desse requisito.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>DISPENSA DE AUTORIZAÇÃO ASSEMBLEAR<|>O inciso IV dispensa expressamente a autorização assemblear para a atuação das associações legitimadas.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>MANIFESTO INTERESSE SOCIAL<|>O § 1º estabelece o manifesto interesse social como condição para a dispensa judicial da pré-constituição.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>DEFESA DO CONSUMIDOR EM JUÍZO<|>O dispositivo identifica os sujeitos legitimados à tutela judicial dos interesses e direitos abrangidos pela remissão ao art. 81, parágrafo único.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>AÇÃO PREVISTA NO ART. 91 DO CDC<|>O § 1º admite a dispensa da pré-constituição nas ações previstas no art. 91 e seguintes, diante de manifesto interesse social.<|>10)
+##
+("relationship"<|>ART. 91 DO CDC<|>AÇÃO PREVISTA NO ART. 91 DO CDC<|>O art. 91 é a referência legal expressamente utilizada para identificar a ação mencionada no § 1º do art. 82.<|>10)
+##
+("relationship"<|>MINISTÉRIO PÚBLICO<|>LEGITIMAÇÃO CONCORRENTE<|>O Ministério Público possui legitimação concorrente por força do inciso I.<|>10)
+##
+("relationship"<|>UNIÃO<|>LEGITIMAÇÃO CONCORRENTE<|>A União possui legitimação concorrente por força do inciso II.<|>10)
+##
+("relationship"<|>ESTADO<|>LEGITIMAÇÃO CONCORRENTE<|>Os Estados possuem legitimação concorrente por força do inciso II.<|>10)
+##
+("relationship"<|>MUNICÍPIO<|>LEGITIMAÇÃO CONCORRENTE<|>Os Municípios possuem legitimação concorrente por força do inciso II.<|>10)
+##
+("relationship"<|>DISTRITO FEDERAL<|>LEGITIMAÇÃO CONCORRENTE<|>O Distrito Federal possui legitimação concorrente por força do inciso II.<|>10)
+##
+("relationship"<|>ÓRGÃO DA ADMINISTRAÇÃO PÚBLICA<|>LEGITIMAÇÃO CONCORRENTE<|>Os órgãos públicos especificamente destinados à defesa dos interesses e direitos protegidos pelo CDC possuem legitimação concorrente, ainda que sem personalidade jurídica.<|>10)
+##
+("relationship"<|>ENTIDADE DA ADMINISTRAÇÃO PÚBLICA<|>LEGITIMAÇÃO CONCORRENTE<|>As entidades públicas abrangidas pelo inciso III possuem legitimação concorrente quando especificamente destinadas à defesa dos interesses e direitos protegidos pelo CDC.<|>10)
+##
+("relationship"<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>LEGITIMAÇÃO CONCORRENTE<|>A associação integra o rol de legitimados concorrentes quando atende aos requisitos legais, ressalvada a possível dispensa da pré-constituição.<|>10)
+##
+("relationship"<|>LEGITIMAÇÃO CONCORRENTE<|>DEFESA DO CONSUMIDOR EM JUÍZO<|>A legitimação concorrente permite a atuação dos sujeitos enumerados na tutela judicial dos interesses e direitos referidos pelo dispositivo.<|>10)
+##
+("relationship"<|>MINISTÉRIO PÚBLICO<|>DEFESA DO CONSUMIDOR EM JUÍZO<|>O Ministério Público é um dos legitimados à defesa judicial prevista no trecho.<|>10)
+##
+("relationship"<|>UNIÃO<|>DEFESA DO CONSUMIDOR EM JUÍZO<|>A União é legitimada à defesa judicial dos interesses e direitos abrangidos pelo art. 82.<|>10)
+##
+("relationship"<|>ESTADO<|>DEFESA DO CONSUMIDOR EM JUÍZO<|>Os Estados são legitimados à defesa judicial dos interesses e direitos abrangidos pelo art. 82.<|>10)
+##
+("relationship"<|>MUNICÍPIO<|>DEFESA DO CONSUMIDOR EM JUÍZO<|>Os Municípios são legitimados à defesa judicial dos interesses e direitos abrangidos pelo art. 82.<|>10)
+##
+("relationship"<|>DISTRITO FEDERAL<|>DEFESA DO CONSUMIDOR EM JUÍZO<|>O Distrito Federal é legitimado à defesa judicial dos interesses e direitos abrangidos pelo art. 82.<|>10)
+##
+("relationship"<|>ÓRGÃO DA ADMINISTRAÇÃO PÚBLICA<|>DEFESA DO CONSUMIDOR EM JUÍZO<|>O órgão público com a finalidade específica exigida pelo inciso III pode atuar na defesa judicial dos interesses e direitos protegidos pelo CDC.<|>10)
+##
+("relationship"<|>ENTIDADE DA ADMINISTRAÇÃO PÚBLICA<|>DEFESA DO CONSUMIDOR EM JUÍZO<|>A entidade pública com a finalidade específica exigida pelo inciso III pode atuar na defesa judicial dos interesses e direitos protegidos pelo CDC.<|>10)
+##
+("relationship"<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>DEFESA DO CONSUMIDOR EM JUÍZO<|>A associação pode exercer a defesa judicial quando inclui essa defesa entre seus fins institucionais e satisfaz os requisitos legais aplicáveis.<|>10)
+##
+("relationship"<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>PRÉ-CONSTITUIÇÃO DA ASSOCIAÇÃO<|>A associação deve estar legalmente constituída há pelo menos um ano, salvo dispensa judicial nas hipóteses legais.<|>10)
+##
+("relationship"<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>DISPENSA DE AUTORIZAÇÃO ASSEMBLEAR<|>A atuação da associação legitimada não depende de autorização assemblear.<|>10)
+##
+("relationship"<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>AÇÃO PREVISTA NO ART. 91 DO CDC<|>Nas ações previstas no art. 91 e seguintes, a associação pode obter dispensa do requisito de pré-constituição nas condições do § 1º.<|>10)
+##
+("relationship"<|>PODER JUDICIÁRIO<|>PRÉ-CONSTITUIÇÃO DA ASSOCIAÇÃO<|>O juiz pode dispensar o requisito de pré-constituição nas ações e condições indicadas pelo § 1º.<|>10)
+##
+("relationship"<|>PODER JUDICIÁRIO<|>MANIFESTO INTERESSE SOCIAL<|>A dispensa judicial da pré-constituição pressupõe manifesto interesse social, evidenciado pelos critérios previstos no texto.<|>10)
+##
+("relationship"<|>PODER JUDICIÁRIO<|>AÇÃO PREVISTA NO ART. 91 DO CDC<|>O juiz pode dispensar a pré-constituição da associação nessa ação e nas previstas nos artigos seguintes.<|>10)
+##
+("relationship"<|>PRÉ-CONSTITUIÇÃO DA ASSOCIAÇÃO<|>MANIFESTO INTERESSE SOCIAL<|>O manifesto interesse social permite a dispensa judicial do requisito temporal de pré-constituição nas ações indicadas.<|>10)
+##
+("relationship"<|>PRÉ-CONSTITUIÇÃO DA ASSOCIAÇÃO<|>LEGITIMAÇÃO CONCORRENTE<|>A pré-constituição é requisito para a legitimação concorrente da associação, ressalvada a dispensa judicial legalmente prevista.<|>10)
+##
+("relationship"<|>PRÉ-CONSTITUIÇÃO DA ASSOCIAÇÃO<|>AÇÃO PREVISTA NO ART. 91 DO CDC<|>O requisito de pré-constituição pode ser dispensado nessa ação e nas previstas nos artigos seguintes.<|>10)
+##
+("relationship"<|>MANIFESTO INTERESSE SOCIAL<|>AÇÃO PREVISTA NO ART. 91 DO CDC<|>Nessa ação e nas previstas nos artigos seguintes, o manifesto interesse social fundamenta a possibilidade de dispensa da pré-constituição.<|>10)
+##
+("relationship"<|>AÇÃO PREVISTA NO ART. 91 DO CDC<|>DEFESA DO CONSUMIDOR EM JUÍZO<|>A ação integra os mecanismos de tutela judicial aos quais se aplica a regra de dispensa prevista no art. 82, § 1º.<|>9)
+<|COMPLETE|>
+#############################
+
+
+Example 3:
+
+entity_types: [consumidor, fornecedor, orgao_entidade, produto, servico, contrato, direito, obrigacao, pratica_abusiva, instituto_juridico, sancao_administrativa, infracao_penal, instrumento_processual, dispositivo_legal]
+text:
+lei_sigla: CDC.
+titulo_nome: Dos Direitos do Consumidor.
+capitulo_nome: Da Proteção Contratual.
+secao_nome: Das Cláusulas Abusivas.
+situacao: vigente.
+Art. 51. São nulas de pleno direito, entre outras, as cláusulas contratuais relativas ao fornecimento de produtos e serviços que:
+
+I - impossibilitem, exonerem ou atenuem a responsabilidade do fornecedor por vícios de qualquer natureza dos produtos e serviços ou impliquem renúncia ou disposição de direitos. Nas relações de consumo entre o fornecedor e o consumidor pessoa jurídica, a indenização poderá ser limitada, em situações justificáveis;
+
+II - subtraiam ao consumidor a opção de reembolso da quantia já paga, nos casos previstos neste código;
+
+III - transfiram responsabilidades a terceiros;
+
+IV - estabeleçam obrigações consideradas iníquas, abusivas, que coloquem o consumidor em desvantagem exagerada, ou sejam incompatíveis com a boa-fé ou a eqüidade;
+
+V - (Vetado);
+
+VI - estabeleçam inversão do ônus da prova em prejuízo do consumidor;
+
+VII - determinem a utilização compulsória de arbitragem;
+
+VIII - imponham representante para concluir ou realizar outro negócio jurídico pelo consumidor;
+
+IX - deixem ao fornecedor a opção de concluir ou não o contrato, embora obrigando o consumidor;
+
+X - permitam ao fornecedor, direta ou indiretamente, variação do preço de maneira unilateral;
+
+XI - autorizem o fornecedor a cancelar o contrato unilateralmente, sem que igual direito seja conferido ao consumidor;
+
+XII - obriguem o consumidor a ressarcir os custos de cobrança de sua obrigação, sem que igual direito lhe seja conferido contra o fornecedor;
+
+XIII - autorizem o fornecedor a modificar unilateralmente o conteúdo ou a qualidade do contrato, após sua celebração;
+
+XIV - infrinjam ou possibilitem a violação de normas ambientais;
+
+XV - estejam em desacordo com o sistema de proteção ao consumidor;
+
+XVI - possibilitem a renúncia do direito de indenização por benfeitorias necessárias.
+
+XVII - condicionem ou limitem de qualquer forma o acesso aos órgãos do Poder Judiciário;         (Incluído pela Lei nº 14.181, de 2021)
+
+XVIII - estabeleçam prazos de carência em caso de impontualidade das prestações mensais ou impeçam o restabelecimento integral dos direitos do consumidor e de seus meios de pagamento a partir da purgação da mora ou do acordo com os credores;         (Incluído pela Lei nº 14.181, de 2021)
+
+XIX - (VETADO).        (Incluído pela Lei nº 14.181, de 2021)
+
+§ 1º Presume-se exagerada, entre outros casos, a vantagem que:
+
+I - ofende os princípios fundamentais do sistema jurídico a que pertence;
+
+II - restringe direitos ou obrigações fundamentais inerentes à natureza do contrato, de tal modo a ameaçar seu objeto ou equilíbrio contratual;
+
+III - se mostra excessivamente onerosa para o consumidor, considerando-se a natureza e conteúdo do contrato, o interesse das partes e outras circunstâncias peculiares ao caso.
+
+§ 2° A nulidade de uma cláusula contratual abusiva não invalida o contrato, exceto quando de sua ausência, apesar dos esforços de integração, decorrer ônus excessivo a qualquer das partes.
+
+§ 3° (Vetado).
+
+§ 4° É facultado a qualquer consumidor ou entidade que o represente requerer ao Ministério Público que ajuíze a competente ação para ser declarada a nulidade de cláusula contratual que contrarie o disposto neste código ou de qualquer forma não assegure o justo equilíbrio entre direitos e obrigações das partes.
+------------------------
+output:
+("entity"<|>ART. 82 DO CDC<|>dispositivo_legal<|>Dispositivo vigente que estabelece os legitimados concorrentes para a defesa dos interesses e direitos referidos no art. 81, parágrafo único, do CDC. Define requisitos para a legitimação das associações, dispensa a autorização assemblear e permite ao juiz dispensar o requisito de pré-constituição nas condições do § 1º. Os §§ 2º e 3º foram vetados.)
+##
+("entity"<|>ART. 81 DO CDC<|>dispositivo_legal<|>Dispositivo cujo parágrafo único é expressamente referido como fundamento da finalidade para a qual se estabelece a legitimação concorrente prevista no art. 82.)
+##
+("entity"<|>ART. 91 DO CDC<|>dispositivo_legal<|>Dispositivo citado, juntamente com os artigos seguintes, para delimitar as ações nas quais o juiz pode dispensar o requisito de pré-constituição das associações, presentes as condições do art. 82, § 1º.)
+##
+("entity"<|>CÓDIGO DE DEFESA DO CONSUMIDOR<|>dispositivo_legal<|>Código identificado pela sigla CDC, que protege os interesses e direitos cuja defesa fundamenta a legitimação disciplinada no trecho.)
+##
+("entity"<|>LEI Nº 9.008/1995<|>dispositivo_legal<|>Lei de 21 de março de 1995 indicada no texto como responsável pela redação do caput do art. 82 do CDC.)
+##
+("entity"<|>MINISTÉRIO PÚBLICO<|>orgao_entidade<|>Instituição expressamente legitimada, de forma concorrente, para a defesa dos interesses e direitos referidos no art. 81, parágrafo único, do CDC.)
+##
+("entity"<|>UNIÃO<|>orgao_entidade<|>Ente federativo expressamente legitimado, de forma concorrente, para a defesa dos interesses e direitos abrangidos pelo art. 82 do CDC.)
+##
+("entity"<|>ESTADO<|>orgao_entidade<|>Ente federativo estadual incluído entre os legitimados concorrentes para a defesa dos interesses e direitos protegidos pelo CDC.)
+##
+("entity"<|>MUNICÍPIO<|>orgao_entidade<|>Ente federativo municipal incluído entre os legitimados concorrentes para a defesa dos interesses e direitos protegidos pelo CDC.)
+##
+("entity"<|>DISTRITO FEDERAL<|>orgao_entidade<|>Ente federativo expressamente incluído entre os legitimados concorrentes previstos no art. 82 do CDC.)
+##
+("entity"<|>ENTIDADE DA ADMINISTRAÇÃO PÚBLICA<|>orgao_entidade<|>Entidade da Administração Pública direta ou indireta especificamente destinada à defesa dos interesses e direitos protegidos pelo CDC, legitimada concorrentemente na forma do inciso III.)
+##
+("entity"<|>ÓRGÃO DA ADMINISTRAÇÃO PÚBLICA<|>orgao_entidade<|>Órgão da Administração Pública direta ou indireta especificamente destinado à defesa dos interesses e direitos protegidos pelo CDC, legitimado concorrentemente ainda que não tenha personalidade jurídica.)
+##
+("entity"<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>orgao_entidade<|>Associação legalmente constituída há pelo menos um ano e que inclua entre seus fins institucionais a defesa dos interesses e direitos protegidos pelo CDC. Possui legitimação concorrente, dispensada a autorização assemblear, e pode ter o requisito de pré-constituição dispensado judicialmente nas condições do § 1º.)
+##
+("entity"<|>PODER JUDICIÁRIO<|>orgao_entidade<|>Instituição representada no trecho pela atuação do juiz, a quem cabe decidir sobre a dispensa do requisito de pré-constituição das associações nas ações e circunstâncias especificadas.)
+##
+("entity"<|>LEGITIMAÇÃO CONCORRENTE<|>instituto_juridico<|>Legitimação atribuída aos diversos sujeitos enumerados no art. 82 para a defesa dos interesses e direitos referidos no art. 81, parágrafo único, sem exclusividade de um único legitimado.)
+##
+("entity"<|>DEFESA DO CONSUMIDOR EM JUÍZO<|>instrumento_processual<|>Tutela judicial dos interesses e direitos protegidos pelo CDC, para a qual o trecho identifica legitimados concorrentes e disciplina requisitos de atuação das associações.)
+##
+("entity"<|>REQUISITO DE PRÉ-CONSTITUIÇÃO<|>instituto_juridico<|>Exigência de que a associação esteja legalmente constituída há pelo menos um ano para integrar o rol de legitimados do art. 82. Pode ser dispensada pelo juiz nas ações previstas no art. 91 e seguintes, quando houver manifesto interesse social nas condições legais.)
+##
+("entity"<|>DISPENSA DO REQUISITO DE PRÉ-CONSTITUIÇÃO<|>instituto_juridico<|>Possibilidade de o juiz afastar o requisito temporal de constituição da associação nas ações previstas no art. 91 e seguintes, quando o manifesto interesse social estiver evidenciado pela dimensão ou característica do dano ou pela relevância do bem jurídico protegido.)
+##
+("entity"<|>MANIFESTO INTERESSE SOCIAL<|>instituto_juridico<|>Condição que autoriza a dispensa judicial do requisito de pré-constituição, evidenciada pela dimensão ou característica do dano ou pela relevância do bem jurídico a ser protegido.)
+##
+("entity"<|>AÇÃO PREVISTA NO ART. 91 E SEGUINTES DO CDC<|>instrument_processual<|>instrumento_processual)
+##
+("relationship"<|>ART. 82 DO CDC<|>CÓDIGO DE DEFESA DO CONSUMIDOR<|>O art. 82 integra as disposições gerais do título do CDC dedicado à defesa do consumidor em juízo.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ART. 81 DO CDC<|>O caput do art. 82 estabelece os legitimados para os fins do parágrafo único do art. 81.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ART. 91 DO CDC<|>O § 1º do art. 82 remete às ações previstas no art. 91 e seguintes para admitir a dispensa do requisito de pré-constituição.<|>10)
+##
+("relationship"<|>LEI Nº 9.008/1995<|>ART. 82 DO CDC<|>A lei é indicada como responsável pela redação do caput do art. 82.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>LEGITIMAÇÃO CONCORRENTE<|>O dispositivo estabelece expressamente a legitimação concorrente dos sujeitos enumerados em seus incisos.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>MINISTÉRIO PÚBLICO<|>O inciso I inclui o Ministério Público entre os legitimados concorrentes.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>UNIÃO<|>O inciso II inclui a União entre os legitimados concorrentes.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ESTADO<|>O inciso II inclui os Estados entre os legitimados concorrentes.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>MUNICÍPIO<|>O inciso II inclui os Municípios entre os legitimados concorrentes.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>DISTRITO FEDERAL<|>O inciso II inclui o Distrito Federal entre os legitimados concorrentes.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ENTIDADE DA ADMINISTRAÇÃO PÚBLICA<|>O inciso III legitima as entidades administrativas especificamente destinadas à defesa dos interesses e direitos protegidos pelo CDC.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ÓRGÃO DA ADMINISTRAÇÃO PÚBLICA<|>O inciso III legitima os órgãos administrativos especificamente destinados à defesa dos interesses e direitos protegidos pelo CDC, ainda que sem personalidade jurídica.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>O inciso IV estabelece a legitimação das associações, seus requisitos e a dispensa de autorização assemblear.<|>10)
+##
+("relationship"<|>MINISTÉRIO PÚBLICO<|>LEGITIMAÇÃO CONCORRENTE<|>O Ministério Público é titular da legitimação concorrente prevista no dispositivo.<|>10)
+##
+("relationship"<|>UNIÃO<|>LEGITIMAÇÃO CONCORRENTE<|>A União é titular da legitimação concorrente prevista no dispositivo.<|>10)
+##
+("relationship"<|>ESTADO<|>LEGITIMAÇÃO CONCORRENTE<|>Os Estados são titulares da legitimação concorrente prevista no dispositivo.<|>10)
+##
+("relationship"<|>MUNICÍPIO<|>LEGITIMAÇÃO CONCORRENTE<|>Os Municípios são titulares da legitimação concorrente prevista no dispositivo.<|>10)
+##
+("relationship"<|>DISTRITO FEDERAL<|>LEGITIMAÇÃO CONCORRENTE<|>O Distrito Federal é titular da legitimação concorrente prevista no dispositivo.<|>10)
+##
+("relationship"<|>ENTIDADE DA ADMINISTRAÇÃO PÚBLICA<|>LEGITIMAÇÃO CONCORRENTE<|>A entidade administrativa possui legitimação concorrente quando especificamente destinada à defesa dos interesses e direitos protegidos pelo CDC.<|>10)
+##
+("relationship"<|>ÓRGÃO DA ADMINISTRAÇÃO PÚBLICA<|>LEGITIMAÇÃO CONCORRENTE<|>O órgão administrativo possui legitimação concorrente quando especificamente destinado à defesa dos interesses e direitos protegidos pelo CDC, independentemente de personalidade jurídica.<|>10)
+##
+("relationship"<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>LEGITIMAÇÃO CONCORRENTE<|>A associação possui legitimação concorrente quando atende aos requisitos legais, ressalvada a possibilidade de dispensa do requisito temporal.<|>10)
+##
+("relationship"<|>LEGITIMAÇÃO CONCORRENTE<|>DEFESA DO CONSUMIDOR EM JUÍZO<|>A legitimação concorrente permite a atuação dos sujeitos enumerados na tutela judicial dos interesses e direitos protegidos pelo CDC.<|>10)
+##
+("relationship"<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>REQUISITO DE PRÉ-CONSTITUIÇÃO<|>A associação deve estar legalmente constituída há pelo menos um ano, salvo dispensa judicial nas condições previstas.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>REQUISITO DE PRÉ-CONSTITUIÇÃO<|>O inciso IV estabelece o requisito temporal de constituição das associações, e o § 1º admite sua dispensa.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>DISPENSA DO REQUISITO DE PRÉ-CONSTITUIÇÃO<|>O § 1º disciplina a possibilidade e as condições da dispensa judicial.<|>10)
+##
+("relationship"<|>REQUISITO DE PRÉ-CONSTITUIÇÃO<|>DISPENSA DO REQUISITO DE PRÉ-CONSTITUIÇÃO<|>A dispensa afasta excepcionalmente a exigência de constituição da associação há pelo menos um ano.<|>10)
+##
+("relationship"<|>PODER JUDICIÁRIO<|>DISPENSA DO REQUISITO DE PRÉ-CONSTITUIÇÃO<|>Cabe ao juiz decidir sobre a dispensa do requisito nas hipóteses previstas no § 1º.<|>10)
+##
+("relationship"<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>DISPENSA DO REQUISITO DE PRÉ-CONSTITUIÇÃO<|>A associação pode beneficiar-se da dispensa judicial do requisito temporal, presentes as condições legais.<|>10)
+##
+("relationship"<|>DISPENSA DO REQUISITO DE PRÉ-CONSTITUIÇÃO<|>MANIFESTO INTERESSE SOCIAL<|>A dispensa depende de manifesto interesse social evidenciado pela dimensão ou característica do dano ou pela relevância do bem jurídico protegido.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>MANIFESTO INTERESSE SOCIAL<|>O § 1º estabelece o manifesto interesse social como condição para a dispensa do requisito de pré-constituição.<|>10)
+##
+("relationship"<|>ART. 91 DO CDC<|>AÇÃO PREVISTA NO ART. 91 E SEGUINTES DO CDC<|>O art. 91 e os artigos seguintes são a referência normativa das ações mencionadas no § 1º do art. 82.<|>10)
+##
+("relationship"<|>DISPENSA DO REQUISITO DE PRÉ-CONSTITUIÇÃO<|>AÇÃO PREVISTA NO ART. 91 E SEGUINTES DO CDC<|>O § 1º admite a dispensa do requisito de pré-constituição no âmbito dessas ações, presentes as condições legais.<|>10)
+##
+("relationship"<|>AÇÃO PREVISTA NO ART. 91 E SEGUINTES DO CDC<|>DEFESA DO CONSUMIDOR EM JUÍZO<|>As ações referidas são meios de tutela judicial dos interesses e direitos protegidos pelo CDC.<|>9)
+<|COMPLETE|>
+#############################
+
+
+Example 4:
+
+entity_types: [consumidor, fornecedor, orgao_entidade, produto, servico, contrato, direito, obrigacao, pratica_abusiva, instituto_juridico, sancao_administrativa, infracao_penal, instrumento_processual, dispositivo_legal]
+text:
+lei_sigla: CDC.
+titulo_nome: Dos Direitos do Consumidor.
+capitulo_nome: Das Sanções Administrativas.
+situacao: vigente.
+Art. 56. As infrações das normas de defesa do consumidor ficam sujeitas, conforme o caso, às seguintes sanções administrativas, sem prejuízo das de natureza civil, penal e das definidas em normas específicas:
+
+I - multa;
+
+II - apreensão do produto;
+
+III - inutilização do produto;
+
+IV - cassação do registro do produto junto ao órgão competente;
+
+V - proibição de fabricação do produto;
+
+VI - suspensão de fornecimento de produtos ou serviço;
+
+VII - suspensão temporária de atividade;
+
+VIII - revogação de concessão ou permissão de uso;
+
+IX - cassação de licença do estabelecimento ou de atividade;
+
+X - interdição, total ou parcial, de estabelecimento, de obra ou de atividade;
+
+XI - intervenção administrativa;
+
+XII - imposição de contrapropaganda.
+
+Parágrafo único. As sanções previstas neste artigo serão aplicadas pela autoridade administrativa, no âmbito de sua atribuição, podendo ser aplicadas cumulativamente, inclusive por medida cautelar, antecedente ou incidente de procedimento administrativo.
+------------------------
+output:
+("entity"<|>ART. 82 DO CDC<|>dispositivo_legal<|>Dispositivo vigente que estabelece os legitimados concorrentes para a defesa coletiva dos interesses e direitos referidos no art. 81, parágrafo único. O § 1º permite dispensar o requisito de pré-constituição das associações nas condições indicadas. Os §§ 2º e 3º foram vetados. O caput recebeu redação da Lei nº 9.008/1995.)
+##
+("entity"<|>ART. 81 DO CDC<|>dispositivo_legal<|>Dispositivo cujo parágrafo único é expressamente referido como delimitador dos interesses e direitos para cuja defesa se estabelece a legitimação concorrente do art. 82.)
+##
+("entity"<|>ART. 91 DO CDC<|>dispositivo_legal<|>Dispositivo citado, juntamente com os artigos seguintes, para indicar as ações nas quais o juiz pode dispensar o requisito de pré-constituição das associações nas condições do art. 82, § 1º.)
+##
+("entity"<|>CÓDIGO DE DEFESA DO CONSUMIDOR<|>dispositivo_legal<|>Código identificado pela sigla CDC, que protege os interesses e direitos cuja defesa fundamenta a legitimação prevista no trecho.)
+##
+("entity"<|>LEI Nº 9.008/1995<|>dispositivo_legal<|>Lei de 21 de março de 1995 expressamente indicada como responsável pela redação do caput do art. 82 do CDC.)
+##
+("entity"<|>MINISTÉRIO PÚBLICO<|>orgao_entidade<|>Instituição legitimada concorrentemente para a defesa dos interesses e direitos referidos no art. 81, parágrafo único, conforme o inciso I do art. 82.)
+##
+("entity"<|>UNIÃO<|>orgao_entidade<|>Ente federativo legitimado concorrentemente para a defesa dos interesses e direitos protegidos pelo CDC, nos termos do art. 82, inciso II.)
+##
+("entity"<|>ESTADO<|>orgao_entidade<|>Ente federativo estadual legitimado concorrentemente para a defesa dos interesses e direitos protegidos pelo CDC, conforme o art. 82, inciso II.)
+##
+("entity"<|>município<|>orgao_entidade<|>Ente federativo municipal legitimado concorrentemente para a defesa dos interesses e direitos protegidos pelo CDC, conforme o art. 82, inciso II.)
+##
+("entity"<|>DISTRITO FEDERAL<|>orgao_entidade<|>Ente federativo expressamente incluído entre os legitimados concorrentes pelo art. 82, inciso II.)
+##
+("entity"<|>ENTIDADE DA ADMINISTRAÇÃO PÚBLICA<|>orgao_entidade<|>Entidade da Administração Pública direta ou indireta especificamente destinada à defesa dos interesses e direitos protegidos pelo CDC, legitimada concorrentemente pelo art. 82, inciso III, ainda que sem personalidade jurídica.)
+##
+("entity"<|>ÓRGÃO DA ADMINISTRAÇÃO PÚBLICA<|>orgao_entidade<|>Órgão da Administração Pública direta ou indireta especificamente destinado à defesa dos interesses e direitos protegidos pelo CDC, legitimado concorrentemente pelo art. 82, inciso III, ainda que sem personalidade jurídica.)
+##
+("entity"<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>orgao_entidade<|>Associação legalmente constituída há pelo menos um ano que inclua entre seus fins institucionais a defesa dos interesses e direitos protegidos pelo CDC. É legitimada concorrentemente, dispensada a autorização assemblear, e pode ter o requisito de pré-constituição dispensado pelo juiz nas hipóteses do § 1º.)
+##
+("entity"<|>PODER JUDICIÁRIO<|>orgao_entidade<|>Instituição representada no trecho pelo juiz, a quem compete avaliar e dispensar o requisito de pré-constituição das associações nas ações previstas no art. 91 e seguintes, quando presentes os fundamentos legais.)
+##
+("entity"<|>LEGITIMAÇÃO CONCORRENTE<|>instituto_juridico<|>Legitimação atribuída simultaneamente aos sujeitos enumerados no art. 82 para a defesa dos interesses e direitos referidos no art. 81, parágrafo único.)
+##
+("entity"<|>DEFESA COLETIVA DO CONSUMIDOR<|>instrumento_processual<|>Defesa em juízo dos interesses e direitos abrangidos pelo art. 81, parágrafo único, exercida pelos legitimados concorrentes enumerados no art. 82.)
+##
+("entity"<|>AÇÃO COLETIVA<|>instrumento_processual<|>Ação voltada à defesa coletiva dos interesses e direitos protegidos pelo CDC. Nas ações previstas no art. 91 e seguintes, admite-se a dispensa judicial do requisito de pré-constituição das associações nas condições do art. 82, § 1º.)
+##
+("entity"<|>REQUISITO DE PRÉ-CONSTITUIÇÃO<|>instituto_juridico<|>Exigência de que a associação esteja legalmente constituída há pelo menos um ano. Pode ser dispensada pelo juiz nas ações previstas no art. 91 e seguintes, quando houver manifesto interesse social evidenciado pela dimensão ou característica do dano ou pela relevância do bem jurídico protegido.)
+##
+("entity"<|>MANIFESTO INTERESSE SOCIAL<|>instituto_juridico<|>Fundamento para a dispensa judicial do requisito de pré-constituição das associações, evidenciado pela dimensão ou característica do dano ou pela relevância do bem jurídico a ser protegido.)
+##
+("relationship"<|>ART. 82 DO CDC<|>CÓDIGO DE DEFESA DO CONSUMIDOR<|>O art. 82 integra o CDC e disciplina a legitimação para a defesa coletiva dos interesses e direitos por ele protegidos.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ART. 81 DO CDC<|>O caput do art. 82 remete expressamente ao parágrafo único do art. 81 para delimitar o âmbito da legitimação concorrente.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ART. 91 DO CDC<|>O § 1º do art. 82 remete ao art. 91 e seguintes para identificar as ações nas quais pode ser dispensado o requisito de pré-constituição.<|>10)
+##
+("relationship"<|>LEI Nº 9.008/1995<|>ART. 82 DO CDC<|>A lei conferiu a redação do caput indicada no trecho.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>MINISTÉRIO PÚBLICO<|>O inciso I inclui o Ministério Público entre os legitimados concorrentes.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>UNIÃO<|>O inciso II atribui legitimação concorrente à União.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ESTADO<|>O inciso II atribui legitimação concorrente aos Estados.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>município<|>O inciso II atribui legitimação concorrente aos Municípios.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>DISTRITO FEDERAL<|>O inciso II atribui legitimação concorrente ao Distrito Federal.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ENTIDADE DA ADMINISTRAÇÃO PÚBLICA<|>O inciso III legitima as entidades especificamente destinadas à defesa dos interesses e direitos protegidos pelo CDC, ainda que sem personalidade jurídica.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ÓRGÃO DA ADMINISTRAÇÃO PÚBLICA<|>O inciso III legitima os órgãos especificamente destinados à defesa dos interesses e direitos protegidos pelo CDC, ainda que sem personalidade jurídica.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>O inciso IV estabelece os requisitos de legitimação das associações e dispensa autorização assemblear; o § 1º admite dispensar o requisito temporal de pré-constituição.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>PODER JUDICIÁRIO<|>O § 1º confere ao juiz a possibilidade de dispensar o requisito de pré-constituição nas condições legais.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>LEGITIMAÇÃO CONCORRENTE<|>O dispositivo estabelece expressamente a legitimação concorrente dos sujeitos enumerados em seus incisos.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>DEFESA COLETIVA DO CONSUMIDOR<|>O dispositivo identifica os legitimados para exercer a defesa coletiva abrangida pelo art. 81, parágrafo único.<|>10)
+##
+("relationship"<|>ART. 81 DO CDC<|>DEFESA COLETIVA DO CONSUMIDOR<|>Seu parágrafo único delimita os interesses e direitos cuja defesa coletiva fundamenta a remissão feita pelo art. 82.<|>10)
+##
+("relationship"<|>ART. 91 DO CDC<|>AÇÃO COLETIVA<|>O art. 91 e os seguintes são citados como referência às ações abrangidas pela possibilidade de dispensa do requisito de pré-constituição.<|>10)
+##
+("relationship"<|>MINISTÉRIO PÚBLICO<|>LEGITIMAÇÃO CONCORRENTE<|>O Ministério Público possui a legitimação concorrente prevista no inciso I.<|>10)
+##
+("relationship"<|>UNIÃO<|>LEGITIMAÇÃO CONCORRENTE<|>A União integra o conjunto de legitimados concorrentes do inciso II.<|>10)
+##
+("relationship"<|>ESTADO<|>LEGITIMAÇÃO CONCORRENTE<|>Os Estados integram o conjunto de legitimados concorrentes do inciso II.<|>10)
+##
+("relationship"<|>município<|>LEGITIMAÇÃO CONCORRENTE<|>Os Municípios integram o conjunto de legitimados concorrentes do inciso II.<|>10)
+##
+("relationship"<|>DISTRITO FEDERAL<|>LEGITIMAÇÃO CONCORRENTE<|>O Distrito Federal integra o conjunto de legitimados concorrentes do inciso II.<|>10)
+##
+("relationship"<|>ENTIDADE DA ADMINISTRAÇÃO PÚBLICA<|>LEGITIMAÇÃO CONCORRENTE<|>As entidades públicas com a finalidade específica indicada no inciso III possuem legitimação concorrente.<|>10)
+##
+("relationship"<|>ÓRGÃO DA ADMINISTRAÇÃO PÚBLICA<|>LEGITIMAÇÃO CONCORRENTE<|>Os órgãos públicos com a finalidade específica indicada no inciso III possuem legitimação concorrente.<|>10)
+##
+("relationship"<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>LEGITIMAÇÃO CONCORRENTE<|>A associação possui legitimação concorrente quando atende aos requisitos do inciso IV, ressalvada a dispensa prevista no § 1º.<|>10)
+##
+("relationship"<|>LEGITIMAÇÃO CONCORRENTE<|>DEFESA COLETIVA DO CONSUMIDOR<|>A legitimação concorrente habilita os sujeitos enumerados a exercer a defesa coletiva dos interesses e direitos abrangidos pela norma.<|>10)
+##
+("relationship"<|>MINISTÉRIO PÚBLICO<|>DEFESA COLETIVA DO CONSUMIDOR<|>O Ministério Público é legitimado para exercer essa defesa em juízo.<|>10)
+##
+("relationship"<|>UNIÃO<|>DEFESA COLETIVA DO CONSUMIDOR<|>A União é legitimada para exercer essa defesa em juízo.<|>10)
+##
+("relationship"<|>ESTADO<|>DEFESA COLETIVA DO CONSUMIDOR<|>Os Estados são legitimados para exercer essa defesa em juízo.<|>10)
+##
+("relationship"<|>município<|>DEFESA COLETIVA DO CONSUMIDOR<|>Os Municípios são legitimados para exercer essa defesa em juízo.<|>10)
+##
+("relationship"<|>DISTRITO FEDERAL<|>DEFESA COLETIVA DO CONSUMIDOR<|>O Distrito Federal é legitimado para exercer essa defesa em juízo.<|>10)
+##
+("relationship"<|>ENTIDADE DA ADMINISTRAÇÃO PÚBLICA<|>DEFESA COLETIVA DO CONSUMIDOR<|>A finalidade específica de defesa dos interesses e direitos protegidos pelo CDC fundamenta a legitimação da entidade pública.<|>10)
+##
+("relationship"<|>ÓRGÃO DA ADMINISTRAÇÃO PÚBLICA<|>DEFESA COLETIVA DO CONSUMIDOR<|>A finalidade específica de defesa dos interesses e direitos protegidos pelo CDC fundamenta a legitimação do órgão público.<|>10)
+##
+("relationship"<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>DEFESA COLETIVA DO CONSUMIDOR<|>A associação deve incluir essa defesa entre seus fins institucionais para obter a legitimação prevista no inciso IV.<|>10)
+##
+("relationship"<|>DEFESA COLETIVA DO CONSUMIDOR<|>AÇÃO COLETIVA<|>A ação coletiva constitui meio de exercício da defesa em juízo tratada no trecho.<|>9)
+##
+("relationship"<|>ART. 82 DO CDC<|>REQUISITO DE PRÉ-CONSTITUIÇÃO<|>O inciso IV exige constituição da associação há pelo menos um ano, e o § 1º disciplina a possibilidade de dispensar esse requisito.<|>10)
+##
+("relationship"<|>ART. 82 DO CDC<|>MANIFESTO INTERESSE SOCIAL<|>O § 1º exige manifesto interesse social, demonstrado pelas circunstâncias indicadas, para permitir a dispensa do requisito de pré-constituição.<|>10)
+##
+("relationship"<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>REQUISITO DE PRÉ-CONSTITUIÇÃO<|>A associação deve atender ao requisito de constituição há pelo menos um ano, salvo dispensa judicial nas hipóteses legais.<|>10)
+##
+("relationship"<|>PODER JUDICIÁRIO<|>REQUISITO DE PRÉ-CONSTITUIÇÃO<|>O juiz pode dispensar o requisito nas ações e condições previstas no § 1º.<|>10)
+##
+("relationship"<|>PODER JUDICIÁRIO<|>MANIFESTO INTERESSE SOCIAL<|>O juiz avalia o manifesto interesse social a partir da dimensão ou característica do dano ou da relevância do bem jurídico protegido.<|>10)
+##
+("relationship"<|>REQUISITO DE PRÉ-CONSTITUIÇÃO<|>MANIFESTO INTERESSE SOCIAL<|>O manifesto interesse social, evidenciado pelas circunstâncias legais, fundamenta a possibilidade de dispensa do requisito.<|>10)
+##
+("relationship"<|>AÇÃO COLETIVA<|>REQUISITO DE PRÉ-CONSTITUIÇÃO<|>Nas ações previstas no art. 91 e seguintes, o requisito pode ser dispensado pelo juiz conforme o art. 82, § 1º.<|>10)
+##
+("relationship"<|>AÇÃO COLETIVA<|>MANIFESTO INTERESSE SOCIAL<|>O manifesto interesse social fundamenta a dispensa da pré-constituição das associações nas ações indicadas pelo § 1º.<|>9)
+##
+("relationship"<|>PODER JUDICIÁRIO<|>ASSOCIAÇÃO DE DEFESA DO CONSUMIDOR<|>O juiz pode dispensar o requisito temporal exigido para a legitimação da associação, observadas as condições legais.<|>10)
+<|COMPLETE|>
 #############################
 
 
 
 -Real Data-
 ######################
-entity_types: [law, consumer, business, government, product, service]
+entity_types: [consumidor, fornecedor, orgao_entidade, produto, servico, contrato, direito, obrigacao, pratica_abusiva, instituto_juridico, sancao_administrativa, infracao_penal, instrumento_processual, dispositivo_legal]
 text: {input_text}
 ######################
 output:
