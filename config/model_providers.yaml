@@ -1,0 +1,69 @@
+# Blocos de configuração prontos para outros provedores de modelo.
+# Este arquivo NÃO é lido pelo GraphRAG: copie o bloco desejado para
+# data/settings.yaml (em completion_models / embedding_models) e troque os
+# completion_model_id / embedding_model_id das etapas que devem usá-lo.
+# A chave correspondente deve estar em data/.env (ver config/.env.example).
+
+completion_models:
+  # Alternativa A: Anthropic (Claude) para as etapas de LLM
+  # (embeddings continuam na OpenAI ou Google; troque os completion_model_id abaixo)
+  strong_model_claude:
+    model_provider: anthropic
+    model: claude-sonnet-5-5
+    auth_method: api_key
+    api_key: ${ANTHROPIC_API_KEY}
+    concurrent_requests: 4
+    async_mode: asyncio
+    max_retries: 6
+    retry:
+      type: exponential_backoff
+    call_args:
+      max_tokens: 4096      # a API da Anthropic exige max_tokens
+      timeout: 180
+  cheap_model_claude:
+    model_provider: anthropic
+    model: claude-haiku-4-5
+    auth_method: api_key
+    api_key: ${ANTHROPIC_API_KEY}
+    concurrent_requests: 4
+    async_mode: asyncio
+    max_retries: 6
+    retry:
+      type: exponential_backoff
+    call_args:
+      max_tokens: 4096
+      timeout: 120
+
+  # Alternativa B: Google (Gemini) - opção mais barata entre os "fortes"
+  strong_model_gemini:
+    model_provider: gemini
+    model: gemini-3.8-flash
+    auth_method: api_key
+    api_key: ${GEMINI_API_KEY}
+    concurrent_requests: 4
+    async_mode: asyncio
+    max_retries: 6
+    retry:
+      type: exponential_backoff
+  cheap_model_gemini:
+    model_provider: gemini
+    model: gemini-3.5-flash-lite
+    auth_method: api_key
+    api_key: ${GEMINI_API_KEY}
+    concurrent_requests: 4
+    async_mode: asyncio
+    max_retries: 6
+    retry:
+      type: exponential_backoff
+
+
+embedding_models:
+  # Alternativa: embeddings do Google
+  gemini_embedding:
+    model_provider: gemini
+    model: gemini-embedding-2
+    auth_method: api_key
+    api_key: ${GEMINI_API_KEY}
+    concurrent_requests: 4
+    retry:
+      type: exponential_backoff

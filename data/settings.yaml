@@ -1,5 +1,8 @@
 ### GraphRAG v3 - configuração com modelos em nuvem (OpenAI por padrão)
 ### Alternativa 100% local (Ollama): config/settings.ollama.yaml
+### Outros provedores (Anthropic, Google): blocos prontos em config/model_providers.yaml
+### ATENÇÃO: o GraphRAG substitui variáveis de ambiente (cifrão + chaves) em TODO o
+### arquivo, inclusive nos comentários. Nunca escreva o caractere cifrão em comentários.
 ### Docs: https://microsoft.github.io/graphrag/config/yaml/
 ###
 ### As chaves de API ficam em data/.env (NÃO versionar; modelo em config/.env.example).
@@ -47,57 +50,6 @@ completion_models:
       temperature: 1
       timeout: 120
 
-  ## --- Alternativa A: Anthropic (Claude) para as etapas de LLM ---
-  ## (embeddings continuam na OpenAI ou Google; troque os completion_model_id abaixo)
-  # strong_model_claude:
-  #   model_provider: anthropic
-  #   model: claude-sonnet-5-5
-  #   auth_method: api_key
-  #   api_key: ${ANTHROPIC_API_KEY}
-  #   concurrent_requests: 4
-  #   async_mode: asyncio
-  #   max_retries: 6
-  #   retry:
-  #     type: exponential_backoff
-  #   call_args:
-  #     max_tokens: 4096      # a API da Anthropic exige max_tokens
-  #     timeout: 180
-  # cheap_model_claude:
-  #   model_provider: anthropic
-  #   model: claude-haiku-4-5
-  #   auth_method: api_key
-  #   api_key: ${ANTHROPIC_API_KEY}
-  #   concurrent_requests: 4
-  #   async_mode: asyncio
-  #   max_retries: 6
-  #   retry:
-  #     type: exponential_backoff
-  #   call_args:
-  #     max_tokens: 4096
-  #     timeout: 120
-
-  ## --- Alternativa B: Google (Gemini) - opção mais barata entre os "fortes" ---
-  # strong_model_gemini:
-  #   model_provider: gemini
-  #   model: gemini-3.8-flash
-  #   auth_method: api_key
-  #   api_key: ${GEMINI_API_KEY}
-  #   concurrent_requests: 4
-  #   async_mode: asyncio
-  #   max_retries: 6
-  #   retry:
-  #     type: exponential_backoff
-  # cheap_model_gemini:
-  #   model_provider: gemini
-  #   model: gemini-3.5-flash-lite
-  #   auth_method: api_key
-  #   api_key: ${GEMINI_API_KEY}
-  #   concurrent_requests: 4
-  #   async_mode: asyncio
-  #   max_retries: 6
-  #   retry:
-  #     type: exponential_backoff
-
 embedding_models:
   default_embedding_model:
     model_provider: openai
@@ -109,15 +61,6 @@ embedding_models:
     retry:
       type: exponential_backoff
 
-  ## --- Alternativa: embeddings do Google ---
-  # gemini_embedding:
-  #   model_provider: gemini
-  #   model: gemini-embedding-2
-  #   auth_method: api_key
-  #   api_key: ${GEMINI_API_KEY}
-  #   concurrent_requests: 4
-  #   retry:
-  #     type: exponential_backoff
 
 ### Document processing settings ###
 
@@ -125,8 +68,7 @@ embedding_models:
 ## corpus/parser/legislation_parser.py a partir de corpus/raw/cdc_planalto.txt.
 ## O parser garante ids únicos (ex.: cdc_art_54-A), usados como ids dos documentos.
 input:
-  type: json
-  file_pattern: ".*\\.json$"
+  type: json        # lê todos os arquivos .json de data/input
   id_column: id
   title_column: id
   text_column: text
@@ -175,7 +117,24 @@ embed_text:
 extract_graph:
   completion_model_id: strong_model
   prompt: "prompts/extract_graph.txt"
-  entity_types: [artigo, direito, obrigacao, sancao, orgao_fiscalizador, relacao_consumo, fornecedor, consumidor]
+  # Taxonomia do domínio. As definições de cada tipo e as regras de nomeação
+  # ficam em scripts/prompt_tune.py (ENTITY_TYPE_DEFINITIONS), que as insere no
+  # prompt de extração. As duas listas precisam ter os mesmos tipos.
+  entity_types:
+    - consumidor
+    - fornecedor
+    - orgao_entidade
+    - produto
+    - servico
+    - contrato
+    - direito
+    - obrigacao
+    - pratica_abusiva
+    - instituto_juridico
+    - sancao_administrativa
+    - infracao_penal
+    - instrumento_processual
+    - dispositivo_legal
   max_gleanings: 1
 
 # Tarefa simples (fundir descrições de uma mesma entidade): modelo barato basta.

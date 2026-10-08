@@ -49,6 +49,7 @@ Tudo roda em containers Docker, o que garante a reprodutibilidade do ambiente:
 │   └── frontend/           # React + TypeScript + Vite
 ├── config/
 │   ├── .env.example        # modelo do data/.env (chaves de API)
+│   ├── model_providers.yaml# blocos prontos para Anthropic e Google
 │   └── settings.ollama.yaml# configuração alternativa 100% local
 ├── corpus/
 │   ├── raw/                # texto bruto do CDC (planalto.gov.br)
@@ -92,8 +93,23 @@ contexto de onde o trecho está na lei.
 
 ### 2. Taxonomia do domínio
 
-Tipos de entidade usados na extração do grafo: `artigo`, `direito`, `obrigacao`,
-`sancao`, `orgao_fiscalizador`, `relacao_consumo`, `fornecedor` e `consumidor`.
+A extração do grafo usa 14 tipos de entidade, que cobrem os seis títulos do CDC:
+
+| Grupo | Tipos |
+|---|---|
+| Sujeitos | `consumidor`, `fornecedor`, `orgao_entidade` |
+| Objeto da relação | `produto`, `servico`, `contrato` |
+| Normativo | `direito`, `obrigacao`, `pratica_abusiva`, `instituto_juridico` (inclui princípios) |
+| Consequências e tutela | `sancao_administrativa`, `infracao_penal`, `instrumento_processual` |
+| Remissões | `dispositivo_legal` (artigos do CDC e outras normas citadas) |
+
+O `graphrag prompt-tune` padrão não aceita uma taxonomia (ele descobre os tipos
+sozinho e os grava no prompt, ignorando o `settings.yaml`). Por isso os prompts são
+gerados por `scripts/prompt_tune.py`, que executa as mesmas etapas do prompt-tune
+oficial, mas usa esta taxonomia, insere no prompt de extração uma **definição de cada
+tipo** e **regras de nomeação** (ex.: `ART. 54-A DO CDC`, `LEI Nº 7.347/1985`; prazos
+ficam na descrição, não viram entidades) e monta os exemplos a partir de artigos
+escolhidos (arts. 6, 12, 51, 56 e 82), em vez de sorteados.
 
 ### 3. Configuração dos modelos
 
@@ -171,14 +187,14 @@ docker exec -it graphrag graphrag query "O que é fornecedor segundo o CDC?" --r
 |-------------------------------------------|---------|
 | Regerar o corpus a partir do texto bruto  | `docker exec -it graphrag python /corpus/parser/legislation_parser.py /corpus/raw/cdc_planalto.txt /data/input/cdc.json --lei-sigla CDC --lei-nome "Código de Defesa do Consumidor" --lei-numero "Lei nº 8.078, de 11 de setembro de 1990"` |
 | Reindexar do zero (apaga o cache: paga as chamadas de novo) | `.\scripts\setup.ps1 -Clean -Index` |
-| Ajustar os prompts ao corpus              | `docker exec -it graphrag graphrag prompt-tune --root /data` (faça backup de `data/prompts` antes) |
+| Ajustar os prompts ao corpus (com a taxonomia) | `docker exec -it graphrag python /scripts/prompt_tune.py` (o `graphrag prompt-tune` padrão ignora a taxonomia; ver o cabeçalho do script) |
 | Inspecionar as tabelas do índice          | `docker exec -it graphrag python /scripts/inspect_output.py` |
 | Gerar visualização HTML estática do grafo | `docker exec -it graphrag python /scripts/visualize_graph.py` (gera `data/output/graph.html`) |
 
 ## Próximos passos
 
 - [ ] Indexar o corpus com os modelos em nuvem e validar manualmente entidades e relações
-- [ ] Rodar o `prompt-tune` com o modelo novo e ajustar os prompts de extração
+- [ ] Gerar os prompts com `scripts/prompt_tune.py` (taxonomia + modelo novo) e revisá-los
 - [ ] Implementar as consultas em linguagem natural na aplicação web
 - [ ] Definir o conjunto de perguntas e executar a avaliação comparativa (`evaluation/`)
 - [ ] Publicar o índice congelado usado na avaliação como *Release*

@@ -64,8 +64,8 @@ for nome, m in (cfg.get("completion_models") or {}).items():
                 api_key=resolver(m.get("api_key")),
                 messages=[{"role": "user", "content": "Responda apenas: OK"}],
                 drop_params=True,  # o GraphRAG também usa drop_params=True
-                **(m.get("call_args") or {}),
-                **extra,
+                # mesma regra do GraphRAG: parâmetros da chamada sobrescrevem call_args
+                **{**(m.get("call_args") or {}), **extra},
             )
             print(f"[OK]   {nome:<15} {modelo:<28} {rotulo:<14} -> {r.choices[0].message.content!r}")
         except Exception as e:  # noqa: BLE001

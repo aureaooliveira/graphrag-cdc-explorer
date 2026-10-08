@@ -55,8 +55,7 @@ embedding_models:
 ## corpus/parser/legislation_parser.py a partir de corpus/raw/cdc_planalto.txt.
 ## O parser garante ids únicos (ex.: cdc_art_54-A), usados como ids dos documentos.
 input:
-  type: json
-  file_pattern: ".*\\.json$"
+  type: json        # lê todos os arquivos .json de data/input
   id_column: id
   title_column: id
   text_column: text
@@ -105,7 +104,24 @@ embed_text:
 extract_graph:
   completion_model_id: strong_model
   prompt: "prompts/extract_graph.txt"
-  entity_types: [artigo, direito, obrigacao, sancao, orgao_fiscalizador, relacao_consumo, fornecedor, consumidor]
+  # Taxonomia do domínio. As definições de cada tipo e as regras de nomeação
+  # ficam em scripts/prompt_tune.py (ENTITY_TYPE_DEFINITIONS), que as insere no
+  # prompt de extração. As duas listas precisam ter os mesmos tipos.
+  entity_types:
+    - consumidor
+    - fornecedor
+    - orgao_entidade
+    - produto
+    - servico
+    - contrato
+    - direito
+    - obrigacao
+    - pratica_abusiva
+    - instituto_juridico
+    - sancao_administrativa
+    - infracao_penal
+    - instrumento_processual
+    - dispositivo_legal
   max_gleanings: 1
 
 # Tarefa simples (fundir descrições de uma mesma entidade): modelo barato basta.
