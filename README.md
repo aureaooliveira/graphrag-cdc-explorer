@@ -172,6 +172,17 @@ copy config\settings.ollama.yaml data\settings.yaml
 .\scripts\setup.ps1 -Local -Index
 ```
 
+### Restaurar um índice publicado (sem reindexar)
+
+Cada índice gerado é publicado na aba **Releases** do GitHub, com as pastas
+`data/output`, `data/cache` e `data/logs`. Para usá-lo sem pagar uma nova indexação:
+
+```powershell
+git checkout v0.1.0                                     # código e prompts daquele índice
+Expand-Archive graphrag-cdc-index-v0.1.0.zip -DestinationPath . -Force
+docker compose restart backend
+```
+
 ### Consultas
 
 ```powershell

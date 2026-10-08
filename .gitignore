@@ -88,3 +88,6 @@ desktop.ini
 
 # arquivos temporarios de execucao
 data/_*
+
+# pacotes de release (publicados no GitHub Releases, não no git)
+releases/
