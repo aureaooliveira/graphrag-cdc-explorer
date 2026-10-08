@@ -1,0 +1,8 @@
+# Dependências são instaladas DENTRO da imagem (npm install no Dockerfile).
+# Sem isto, o COPY . . sobrescreve o node_modules da imagem com o da máquina.
+node_modules
+dist
+dist-ssr
+.vite
+*.log
+.env
