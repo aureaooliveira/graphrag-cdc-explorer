@@ -109,7 +109,7 @@ gerados por `scripts/prompt_tune.py`, que executa as mesmas etapas do prompt-tun
 oficial, mas usa esta taxonomia, insere no prompt de extração uma **definição de cada
 tipo** e **regras de nomeação** (ex.: `ART. 54-A DO CDC`, `LEI Nº 7.347/1985`; prazos
 ficam na descrição, não viram entidades) e monta os exemplos a partir de artigos
-escolhidos (arts. 6, 12, 51, 56 e 82), em vez de sorteados.
+escolhidos (arts. 49, 12, 42, 82, 66 e 56: curtos e cobrindo quase toda a taxonomia), em vez de sorteados.
 
 ### 3. Configuração dos modelos
 

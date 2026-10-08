@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-08T03:54:06+00:00",
+  "generated_at": "2026-10-08T04:16:35+00:00",
   "graphrag_version": "3.1.0",
   "model": "openai/gpt-6.1-sol",
   "domain": "legislação consumerista brasileira (Código de Defesa do Consumidor, Lei nº 8.078/1990)",
@@ -45,32 +45,43 @@
     "Se o artigo estiver vetado ou revogado (situacao no cabeçalho do trecho), crie a entidade do dispositivo e registre o veto ou a revogação na descrição."
   ],
   "example_ids": [
-    "cdc_art_6",
+    "cdc_art_49",
     "cdc_art_12",
-    "cdc_art_51",
-    "cdc_art_56",
-    "cdc_art_82"
+    "cdc_art_42",
+    "cdc_art_82",
+    "cdc_art_66",
+    "cdc_art_56"
   ],
   "context_ids": [
-    "cdc_art_6",
+    "cdc_art_49",
     "cdc_art_12",
-    "cdc_art_51",
-    "cdc_art_56",
+    "cdc_art_42",
     "cdc_art_82",
+    "cdc_art_66",
+    "cdc_art_56",
     "cdc_art_2",
     "cdc_art_4",
+    "cdc_art_6",
+    "cdc_art_51",
     "cdc_art_18",
     "cdc_art_26",
     "cdc_art_39",
     "cdc_art_54-A",
     "cdc_art_54-E",
-    "cdc_art_66",
     "cdc_art_106"
   ],
-  "max_tokens": 5000,
-  "min_examples": 4,
-  "examples_in_prompt": 4,
-  "persona": "You are an expert in Brazilian consumer law, specializing in the Código de Defesa do Consumidor (Lei nº 8.078/1990) and the structure of the consumer protection community. You are skilled at analyzing legal texts to identify key actors, including consumers, suppliers, regulatory bodies, consumer protection agencies, and courts, and mapping their rights, duties, and institutional relationships. You are adept at helping people identify and organize the relations within this domain, distinguishing consumer–supplier relationships from oversight, enforcement, dispute resolution, and collective representation mechanisms.",
-  "community_reporter_role": "Um analista jurídico especializado em legislação consumerista brasileira que analisa a comunidade de proteção e defesa do consumidor à luz do Código de Defesa do Consumidor (Lei nº 8.078/1990), a partir de uma lista de entidades — consumidores, fornecedores, órgãos reguladores e de defesa do consumidor, Ministério Público, associações e tribunais —, suas relações e eventuais alegações associadas, distinguindo relações de consumo de mecanismos de fiscalização, responsabilização, resolução de conflitos e representação coletiva.\nO relatório será utilizado para informar tomadores de decisão sobre os direitos, deveres e vínculos institucionais relevantes da comunidade e seus potenciais impactos na proteção do consumidor.",
-  "community_report_rating": "Um escore decimal entre 0 e 10 que representa a relevância e a importância do texto para a legislação consumerista brasileira e para a identificação dos atores, direitos, deveres e relações institucionais do sistema de defesa do consumidor, considerando a definição de consumidor, as responsabilidades dos fornecedores, a proteção contratual, a prevenção e reparação de danos, os prazos legais, o superendividamento e os mecanismos de fiscalização, sanção, resolução de conflitos e representação coletiva, com 0 indicando conteúdo irrelevante, 1 conteúdo trivial ou periférico e 10 conteúdo fundamental para compreender e aplicar o CDC e mapear as relações entre consumidores, fornecedores, órgãos administrativos, Ministério Público, associações e Poder Judiciário, distinguindo disposições vigentes de dispositivos vetados."
+  "max_tokens": 12000,
+  "min_examples": 3,
+  "examples_in_prompt": 3,
+  "example_warnings": {
+    "cdc_art_49": [],
+    "cdc_art_12": [],
+    "cdc_art_42": [],
+    "cdc_art_82": [],
+    "cdc_art_66": [],
+    "cdc_art_56": []
+  },
+  "persona": "You are an expert in Brazilian consumer law and knowledge-graph analysis, specializing in the Código de Defesa do Consumidor (Lei nº 8.078/1990). You are skilled at identifying entities, legal concepts, institutional actors, and the relationships among consumers, suppliers, regulatory bodies, and consumer-protection organizations. You are adept at helping people map the structure of this community of interest, distinguishing rights, obligations, enforcement mechanisms, and institutional responsibilities. You ground your analysis in the provided text and applicable legal provisions, clearly separating explicit relationships from inferred connections.",
+  "community_reporter_role": "Um analista jurídico especializado em legislação consumerista brasileira que analisa a comunidade de relações de consumo à luz do Código de Defesa do Consumidor (Lei nº 8.078/1990), a partir do texto fornecido, de uma lista de entidades pertencentes à comunidade, de suas relações e de eventuais alegações associadas, distinguindo vínculos explícitos de conexões inferidas.\nO relatório será utilizado para informar tomadores de decisão sobre direitos dos consumidores, obrigações e responsabilidades dos fornecedores, atribuições dos órgãos e entidades de defesa do consumidor e mecanismos de proteção e aplicação da lei, bem como seus potenciais impactos sobre a comunidade.",
+  "community_report_rating": "Um escore decimal entre 0 e 10 que representa a relevância e a importância do texto para a análise do Código de Defesa do Consumidor e o mapeamento de entidades, conceitos jurídicos e relações entre consumidores, fornecedores, órgãos públicos e organizações de defesa do consumidor, considerando direitos, obrigações, prazos, responsabilidades, sanções, mecanismos de proteção e competências institucionais. A avaliação deve observar a situação normativa dos dispositivos e distinguir relações expressamente previstas de conexões inferidas, sendo 0 conteúdo irrelevante, 1 conteúdo trivial ou marginal e 10 conteúdo fundamental e de elevado impacto para compreender e estruturar a proteção jurídica e institucional do consumidor."
 }

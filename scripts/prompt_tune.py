@@ -19,7 +19,14 @@ estas diferenças:
     (ENTITY_TYPE_DEFINITIONS) e REGRAS DE NOMEAÇÃO (NAMING_RULES), que
     também orientam a geração dos exemplos;
   - fixa domínio e idioma;
-  - usa artigos escolhidos (EXAMPLE_IDS / CONTEXT_IDS) em vez de sorteio.
+  - usa artigos escolhidos (EXAMPLE_IDS / CONTEXT_IDS) em vez de sorteio;
+  - gera os exemplos com uma conversa NOVA por artigo. Na 3.1.0, a função
+    oficial (generate_entity_relationship_examples) reaproveita a mesma lista
+    de mensagens para todas as chamadas, então cada chamada recebe TODOS os
+    artigos e o modelo responde sempre sobre o último: todos os exemplos saem
+    com a extração do mesmo artigo. Isso também afeta o `graphrag prompt-tune`;
+  - normaliza os exemplos (nomes em maiúsculas, tipos fora da taxonomia
+    corrigidos ou sinalizados) e confere se cada exemplo cita o seu artigo.
 
 Os chunks são montados exatamente como na indexação (mesmo chunker e
 mesmo prepend_metadata). Os prompts são gravados em data/prompts e os
@@ -35,8 +42,10 @@ from __future__ import annotations
 import argparse
 import asyncio
 import dataclasses
+import difflib
 import json
 import os
+import re
 from datetime import datetime, timezone
 from importlib.metadata import version
 from pathlib import Path
@@ -53,8 +62,8 @@ from graphrag.prompt_tune.generator.community_report_summarization import (
 from graphrag.prompt_tune.generator.community_reporter_role import (
     generate_community_reporter_role,
 )
-from graphrag.prompt_tune.generator.entity_relationship import (
-    generate_entity_relationship_examples,
+from graphrag.prompt_tune.prompt.entity_relationship import (
+    ENTITY_RELATIONSHIPS_GENERATION_PROMPT,
 )
 from graphrag.prompt_tune.generator.entity_summarization_prompt import (
     ENTITY_SUMMARIZATION_FILENAME,
@@ -69,6 +78,7 @@ from graphrag.tokenizer.get_tokenizer import get_tokenizer
 from graphrag_chunking.chunker_factory import create_chunker
 from graphrag_input import create_input_reader
 from graphrag_llm.completion import create_completion
+from graphrag_llm.utils import CompletionMessagesBuilder
 from graphrag_storage import create_storage
 
 ROOT = Path(os.environ.get("GRAPHRAG_ROOT", "/data"))
@@ -164,27 +174,31 @@ NAMING_RULES = [
     "entidade do dispositivo e registre o veto ou a revogação na descrição.",
 ]
 
-# Artigos usados como EXEMPLOS de extração (o GraphRAG usa no máximo 5),
-# escolhidos para cobrir o maior número possível de tipos:
-#   art. 6  -> direito, consumidor, produto, servico, instituto_juridico
+# Artigos usados como EXEMPLOS de extração, em ordem de prioridade: entram no
+# prompt enquanto couberem em --max-tokens (mínimo de --min-examples).
+# Escolhidos por serem CURTOS e, juntos, cobrirem quase toda a taxonomia.
+# (Artigos longos como o 6 e o 51 geram exemplos com 50+ entidades e mais de
+# 100 relações, o que deixava o prompt com ~27 mil tokens por chamada.)
+#   art. 49 -> direito (arrependimento), contrato, consumidor, produto, servico
 #   art. 12 -> fornecedor, produto, obrigacao, instituto_juridico
-#   art. 51 -> pratica_abusiva, contrato, consumidor, fornecedor
-#   art. 56 -> sancao_administrativa, dispositivo_legal
+#   art. 42 -> pratica_abusiva (cobrança), direito (repetição do indébito)
 #   art. 82 -> orgao_entidade, instrumento_processual, dispositivo_legal
-# Os tipos sem exemplo (ex.: infracao_penal) são guiados pelas definições.
-EXAMPLE_IDS = ["cdc_art_6", "cdc_art_12", "cdc_art_51", "cdc_art_56", "cdc_art_82"]
+#   art. 66 -> infracao_penal
+#   art. 56 -> sancao_administrativa
+EXAMPLE_IDS = ["cdc_art_49", "cdc_art_12", "cdc_art_42", "cdc_art_82", "cdc_art_66", "cdc_art_56"]
 
 # Artigos usados como CONTEXTO para gerar o papel do relator de comunidades
 # e os critérios de relevância (inclui os exemplos e outros temas do código).
 CONTEXT_IDS = EXAMPLE_IDS + [
     "cdc_art_2",    # conceito de consumidor
     "cdc_art_4",    # princípios da Política Nacional
+    "cdc_art_6",    # direitos básicos
+    "cdc_art_51",   # cláusulas abusivas
     "cdc_art_18",   # vício do produto
     "cdc_art_26",   # decadência
     "cdc_art_39",   # práticas abusivas
     "cdc_art_54-A", # superendividamento
     "cdc_art_54-E", # artigo vetado
-    "cdc_art_66",   # infração penal
     "cdc_art_106",  # Sistema Nacional de Defesa do Consumidor
 ]
 
@@ -204,6 +218,67 @@ def inject_guidance(prompt: str, guidance: str) -> str:
     if marker not in prompt:
         raise SystemExit("Marcador -Examples- não encontrado no prompt gerado.")
     return prompt.replace(marker, guidance + "\n\n" + marker, 1)
+
+
+async def generate_examples(llm, system: str, entity_types: list[str],
+                            docs: list[str], language: str) -> list[str]:
+    """Gera um exemplo de extração por artigo, cada um em uma conversa nova.
+
+    Mesmo prompt da função oficial (ENTITY_RELATIONSHIPS_GENERATION_PROMPT),
+    mas sem compartilhar a lista de mensagens entre as chamadas.
+    """
+    types = ", ".join(entity_types)
+
+    async def one(doc: str) -> str:
+        messages = (
+            CompletionMessagesBuilder()
+            .add_system_message(system)
+            .add_user_message(
+                ENTITY_RELATIONSHIPS_GENERATION_PROMPT.format(
+                    entity_types=types, input_text=doc, language=language
+                )
+            )
+            .build()
+        )
+        response = await llm.completion_async(messages=messages)
+        return response.content
+
+    return list(await asyncio.gather(*(one(d) for d in docs)))
+
+
+def article_name(doc_id: str) -> str:
+    """cdc_art_6 -> 'ART. 6º DO CDC'; cdc_art_54-A -> 'ART. 54-A DO CDC'."""
+    num = doc_id.split("_art_")[1]
+    if num.isdigit() and int(num) <= 9:
+        return f"ART. {num}º DO CDC"
+    return f"ART. {num} DO CDC"
+
+
+def normalize_example(output: str, entity_types: list[str]) -> tuple[str, list[str]]:
+    """Coloca nomes em maiúsculas e corrige tipos fora da taxonomia.
+
+    Retorna o exemplo normalizado e uma lista de avisos.
+    """
+    warnings: list[str] = []
+    valid = set(entity_types)
+
+    def fix_entity(m: re.Match) -> str:
+        name, etype, desc = m.group(1), m.group(2).strip(), m.group(3)
+        if etype not in valid:
+            close = difflib.get_close_matches(etype, entity_types, n=1, cutoff=0.8)
+            if close:
+                warnings.append(f"tipo '{etype}' corrigido para '{close[0]}' ({name.upper()})")
+                etype = close[0]
+            else:
+                warnings.append(f"tipo fora da taxonomia: '{etype}' ({name.upper()})")
+        return f'("entity"<|>{name.strip().upper()}<|>{etype}<|>{desc}'
+
+    def fix_relationship(m: re.Match) -> str:
+        return f'("relationship"<|>{m.group(1).strip().upper()}<|>{m.group(2).strip().upper()}<|>'
+
+    output = re.sub(r'\("entity"<\|>(.*?)<\|>(.*?)<\|>(.*?)(?=\))', fix_entity, output, flags=re.S)
+    output = re.sub(r'\("relationship"<\|>(.*?)<\|>(.*?)<\|>', fix_relationship, output)
+    return output, warnings
 
 
 async def load_chunks(config) -> dict[str, str]:
@@ -257,14 +332,22 @@ async def main(dry_run: bool, max_tokens: int, min_examples: int) -> None:
     print("3/5 Gerando exemplos de extração com a taxonomia...")
     # As definições e regras entram como instrução de sistema, para que os
     # exemplos gerados já sigam a taxonomia e a nomeação esperadas.
-    examples = await generate_entity_relationship_examples(
-        llm,
-        persona=persona + "\n\n" + guidance,
-        entity_types=entity_types,
-        docs=example_docs,
-        language=LANGUAGE,
-        json_mode=False,  # a indexação usa o formato com delimitadores
+    raw_examples = await generate_examples(
+        llm, persona + "\n\n" + guidance, entity_types, example_docs, LANGUAGE
     )
+    examples: list[str] = []
+    example_warnings: dict[str, list[str]] = {}
+    for doc_id, raw in zip(EXAMPLE_IDS, raw_examples):
+        fixed, warns = normalize_example(raw, entity_types)
+        if article_name(doc_id) not in fixed:
+            warns.append(f"o exemplo não cita {article_name(doc_id)}: confira se corresponde ao artigo")
+        n_ent = fixed.count('("entity"')
+        n_rel = fixed.count('("relationship"')
+        print(f"   {doc_id}: {n_ent} entidades, {n_rel} relações")
+        for w in warns:
+            print(f"     AVISO: {w}")
+        example_warnings[doc_id] = warns
+        examples.append(fixed)
     extract_prompt = create_extract_graph_prompt(
         entity_types=entity_types,
         docs=example_docs,
@@ -309,6 +392,7 @@ async def main(dry_run: bool, max_tokens: int, min_examples: int) -> None:
         "max_tokens": max_tokens,
         "min_examples": min_examples,
         "examples_in_prompt": n_examples,
+        "example_warnings": example_warnings,
         "persona": persona,
         "community_reporter_role": role,
         "community_report_rating": rating,
@@ -333,9 +417,9 @@ async def main(dry_run: bool, max_tokens: int, min_examples: int) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--dry-run", action="store_true", help="Não grava os arquivos.")
-    parser.add_argument("--max-tokens", type=int, default=5000,
-                        help="Limite de tokens do prompt de extração (padrão: 5000).")
-    parser.add_argument("--min-examples", type=int, default=4,
-                        help="Mínimo de exemplos no prompt de extração (padrão: 4).")
+    parser.add_argument("--max-tokens", type=int, default=12000,
+                        help="Limite de tokens do prompt de extração (padrão: 12000).")
+    parser.add_argument("--min-examples", type=int, default=3,
+                        help="Mínimo de exemplos no prompt de extração (padrão: 3).")
     a = parser.parse_args()
     asyncio.run(main(a.dry_run, a.max_tokens, a.min_examples))

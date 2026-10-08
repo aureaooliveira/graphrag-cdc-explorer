@@ -85,3 +85,6 @@ graph.html
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# arquivos temporarios de execucao
+data/_*
