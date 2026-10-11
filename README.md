@@ -62,6 +62,7 @@ Tudo roda em containers Docker, o que garante a reprodutibilidade do ambiente:
 ├── docker/graphrag/        # imagem do GraphRAG (versão fixada)
 ├── docs/
 │   ├── architecture.md     # arquitetura, API, eventos e banco
+│   ├── implementation-log.md # registro detalhado de implementação (base do relatório)
 │   ├── proposal/           # anteprojeto (PDF)
 │   ├── reports/            # relatórios de acompanhamento
 │   └── notes/              # anotações de trabalho
@@ -147,13 +148,15 @@ Três telas:
   drift e basic), com o passo a passo exibido ao vivo: contexto recuperado (entidades,
   relações, relatórios de comunidade, trechos), pontos-chave da etapa map (global), árvore
   de perguntas de acompanhamento (DRIFT), prompt exato enviado ao modelo, resposta e
-  métricas (chamadas ao LLM, tokens e tempo).
+  métricas (chamadas ao LLM, tokens e tempo). Cada consulta mostra o **subgrafo usado
+  como contexto** e pode destacá-lo no grafo completo.
 - **Histórico**: todas as consultas ficam gravadas em SQLite com as etapas, o prompt e as
   métricas, associadas à versão do índice que as respondeu.
 
 O backend usa a mesma biblioteca (GraphRAG 3.1.0), o mesmo `settings.yaml` e o mesmo
 índice da CLI. Detalhes da arquitetura, da API e do banco em
-[`docs/architecture.md`](docs/architecture.md).
+[`docs/architecture.md`](docs/architecture.md). O registro detalhado de todas as
+decisões, problemas e medições está em [`docs/implementation-log.md`](docs/implementation-log.md).
 
 ## Como executar
 
@@ -222,7 +225,7 @@ docker exec -it graphrag graphrag query "O que é fornecedor segundo o CDC?" --r
 - [ ] Indexar o corpus com os modelos em nuvem e validar manualmente entidades e relações
 - [ ] Gerar os prompts com `scripts/prompt_tune.py` (taxonomia + modelo novo) e revisá-los
 - [x] Consultas em linguagem natural na aplicação web, com o passo a passo e histórico
-- [ ] Destacar no grafo as entidades e relações usadas como contexto de uma consulta
+- [x] Destaque no grafo das entidades e relações usadas como contexto de cada consulta
 - [ ] Definir o conjunto de perguntas e executar a avaliação comparativa (`evaluation/`)
 - [ ] Publicar o índice congelado usado na avaliação como *Release*
 

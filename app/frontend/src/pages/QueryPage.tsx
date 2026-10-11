@@ -15,7 +15,7 @@ const EXAMPLES = [
 
 const RESPONSE_TYPES = ["Multiple Paragraphs", "Single Paragraph", "List of 3-7 Points", "Single Sentence"];
 
-export const QueryPage: React.FC = () => {
+export const QueryPage: React.FC<{ onOpenGraph?: () => void }> = ({ onOpenGraph }) => {
   const [question, setQuestion] = useState("");
   const [method, setMethod] = useState<QueryMethod>("local");
   const [communityLevel, setCommunityLevel] = useState(2);
@@ -132,7 +132,7 @@ export const QueryPage: React.FC = () => {
       {/* Linha do tempo */}
       <div className="overflow-y-auto pb-8">
         {submitted ? (
-          <RunView method={submitted.method} steps={steps} answer={answer} running={running} error={error} />
+          <RunView method={submitted.method} steps={steps} answer={answer} running={running} error={error} onOpenGraph={onOpenGraph} />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             Faça uma pergunta para ver, passo a passo, o que o GraphRAG recupera e envia ao modelo.

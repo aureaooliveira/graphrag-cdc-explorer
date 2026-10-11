@@ -4,6 +4,7 @@ import { GraphPage } from "./pages/GraphPage";
 import { QueryPage } from "./pages/QueryPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { api } from "./lib/api";
+import { GraphDataProvider } from "./context/GraphDataContext";
 import type { IndexInfo } from "./types/query";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +31,7 @@ function App() {
   const iv = index?.index_version;
 
   return (
+    <GraphDataProvider>
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
       <header className="flex h-14 shrink-0 items-center gap-4 border-b px-4">
         <div className="font-semibold">GraphRAG · CDC</div>
@@ -65,11 +67,20 @@ function App() {
         )}
       </header>
       <main className="min-h-0 flex-1">
-        {tab === "graph" && <GraphPage />}
-        {tab === "query" && <QueryPage />}
-        {tab === "history" && <HistoryPage />}
+        {/* As telas ficam montadas (só escondidas) para não perder o estado,
+            por exemplo uma consulta em andamento ao abrir o grafo. */}
+        <div className={cn("h-full", tab !== "graph" && "hidden")}>
+          <GraphPage active={tab === "graph"} />
+        </div>
+        <div className={cn("h-full", tab !== "query" && "hidden")}>
+          <QueryPage onOpenGraph={() => setTab("graph")} />
+        </div>
+        <div className={cn("h-full", tab !== "history" && "hidden")}>
+          <HistoryPage onOpenGraph={() => setTab("graph")} active={tab === "history"} />
+        </div>
       </main>
     </div>
+    </GraphDataProvider>
   );
 }
 

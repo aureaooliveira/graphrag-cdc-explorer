@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { AlertCircle } from "lucide-react";
 import type { QueryMethod, QueryStep } from "../../types/query";
 import { Section, type SectionState } from "./Section";
@@ -7,6 +7,9 @@ import { PromptView } from "./PromptView";
 import { MapView } from "./MapView";
 import { DriftTree } from "./DriftTree";
 import { Answer } from "./Answer";
+import { ContextGraph } from "./ContextGraph";
+import { useGraph } from "../../context/GraphDataContext";
+import { computeContextHighlight } from "@/lib/highlight";
 
 interface RunViewProps {
   method: QueryMethod;
@@ -14,12 +17,15 @@ interface RunViewProps {
   answer: string;
   running: boolean;
   error?: string | null;
+  /** chamado ao pedir "Ver no grafo completo" (a tela troca para a aba Grafo) */
+  onOpenGraph?: () => void;
 }
 
 const fmt = (n?: number | null) => (n ?? 0).toLocaleString("pt-BR");
 
 /** Linha do tempo das etapas de uma consulta (ao vivo ou do histórico). */
-export const RunView: React.FC<RunViewProps> = ({ method, steps, answer, running, error }) => {
+export const RunView: React.FC<RunViewProps> = ({ method, steps, answer, running, error, onOpenGraph }) => {
+  const { graphData, setHighlight } = useGraph();
   const find = (type: string) => steps.find((s) => s.type === type)?.payload;
   const all = (type: string) => steps.filter((s) => s.type === type).map((s) => s.payload);
 
@@ -30,6 +36,15 @@ export const RunView: React.FC<RunViewProps> = ({ method, steps, answer, running
   const mapEnd = find("map_end");
   const reduceStart = find("reduce_start");
   const result = find("result");
+
+  // Destaque no grafo: calculado quando há contexto (local, basic, drift) ou,
+  // na global, quando a consulta termina (usa as citações dos pontos e da resposta).
+  const highlight = useMemo(() => {
+    if (!graphData) return null;
+    if (method === "global" && !result) return null;
+    if (method !== "global" && !context) return null;
+    return computeContextHighlight(method, steps, answer || result?.response || "", graphData);
+  }, [graphData, method, steps, answer, result, context]);
 
   // Estado de cada etapa: concluída se o evento chegou; "em andamento" se é a
   // primeira etapa ainda sem evento enquanto a consulta roda.
@@ -70,6 +85,26 @@ export const RunView: React.FC<RunViewProps> = ({ method, steps, answer, running
       ),
     });
   }
+
+  sections.push({
+    title: "Subgrafo usado como contexto",
+    done: !!highlight || (!!result && !highlight),
+    subtitle: highlight
+      ? `${highlight.nodeIds.size} entidade(s) · ${highlight.linkCount} relação(ões)`
+      : result
+        ? "Nenhuma entidade do grafo associada a este contexto"
+        : undefined,
+    body: highlight && graphData && (
+      <ContextGraph
+        graph={graphData}
+        highlight={highlight}
+        onOpenFullGraph={() => {
+          setHighlight(highlight);
+          onOpenGraph?.();
+        }}
+      />
+    ),
+  });
 
   if (method === "drift") {
     sections.push({

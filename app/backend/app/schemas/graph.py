@@ -13,6 +13,7 @@ class GraphNode(BaseModel):
     description: str
     degree: int
     communities: List[CommunityLevel]
+    text_units: List[str] = []  # ids curtos dos trechos de onde a entidade foi extraída
 
 class GraphEdge(BaseModel):
     source: str

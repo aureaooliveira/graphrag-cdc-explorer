@@ -33,6 +33,9 @@ class GraphLoader:
             relationships_df = pd.read_parquet(os.path.join(DATA_DIR, "relationships.parquet"))
             communities_df = pd.read_parquet(os.path.join(DATA_DIR, "communities.parquet"))
             reports_df = pd.read_parquet(os.path.join(DATA_DIR, "community_reports.parquet"))
+            text_units_df = pd.read_parquet(
+                os.path.join(DATA_DIR, "text_units.parquet"), columns=["id", "human_readable_id"]
+            )
         except Exception as e:
             print(f"Error loading parquets: {e}")
             # If files don't exist yet, we just initialize empty
@@ -90,6 +93,12 @@ class GraphLoader:
 
         self.communities_data = communities_info_list
 
+        # Mapa uuid do trecho -> id curto (o mesmo exibido no contexto das buscas,
+        # ex.: "Sources (49)"), para ligar trechos recuperados às entidades.
+        text_unit_hid = {
+            str(row["id"]): str(row["human_readable_id"]) for _, row in text_units_df.iterrows()
+        }
+
         # Process Entities (Nodes)
         nodes = []
         entity_types = set()
@@ -107,7 +116,12 @@ class GraphLoader:
                 "type": ent_type,
                 "description": str(row.get("description", "")),
                 "degree": int(row.get("degree", 0)),
-                "communities": entity_to_communities.get(ent_id, [])
+                "communities": entity_to_communities.get(ent_id, []),
+                "text_units": [
+                    text_unit_hid[str(tu)]
+                    for tu in (row.get("text_unit_ids") if row.get("text_unit_ids") is not None else [])
+                    if str(tu) in text_unit_hid
+                ],
             })
             
         self.graph_data["nodes"] = nodes

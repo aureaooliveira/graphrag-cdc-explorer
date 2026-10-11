@@ -9,7 +9,7 @@ import { METHOD_INFO, type QueryRunDetail, type QueryRunSummary } from "../types
 const fmtDate = (s: string | null) => (s ? new Date(s.endsWith("Z") || s.includes("+") ? s : s + "Z").toLocaleString("pt-BR") : "");
 const fmt = (n?: number | null) => (n ?? 0).toLocaleString("pt-BR");
 
-export const HistoryPage: React.FC = () => {
+export const HistoryPage: React.FC<{ onOpenGraph?: () => void; active?: boolean }> = ({ onOpenGraph, active = true }) => {
   const [items, setItems] = useState<QueryRunSummary[]>([]);
   const [total, setTotal] = useState(0);
   const [method, setMethod] = useState("");
@@ -33,9 +33,10 @@ export const HistoryPage: React.FC = () => {
     }
   }, [method, source, q]);
 
+  // Recarrega ao entrar na aba (novas consultas podem ter sido feitas).
   useEffect(() => {
-    load();
-  }, [load]);
+    if (active) load();
+  }, [load, active]);
 
   const open = async (id: string) => setSelected(await api.run(id));
   const remove = async (id: string) => {
@@ -76,6 +77,7 @@ export const HistoryPage: React.FC = () => {
           answer={selected.response ?? ""}
           running={selected.status === "running"}
           error={selected.error}
+          onOpenGraph={onOpenGraph}
         />
       </div>
     );

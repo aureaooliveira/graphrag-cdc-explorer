@@ -43,7 +43,7 @@ flowchart LR
 
 | Método | Rota | Descrição |
 |---|---|---|
-| GET | `/api/graph`, `/api/communities`, `/api/meta` | Grafo para visualização |
+| GET | `/api/graph`, `/api/communities`, `/api/meta` | Grafo para visualização (cada nó traz `text_units`, os trechos de onde foi extraído, usados para ligar o contexto das buscas ao grafo) |
 | POST | `/api/query` | Consulta com etapas ao vivo (SSE). `?stream=false` devolve o registro completo |
 | GET | `/api/runs` | Histórico (filtros: `method`, `source`, `status`, `evaluation_run_id`, `q`) |
 | GET / DELETE | `/api/runs/{id}` | Consulta com todas as etapas / exclusão |

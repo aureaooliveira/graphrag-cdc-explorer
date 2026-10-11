@@ -1,6 +1,6 @@
 import React, { useRef, useMemo, useCallback, useState, useEffect } from "react";
 import ForceGraph2D from "react-force-graph-2d";
-import { GraphData, GraphNode } from "../types/graph";
+import type { GraphData, GraphHighlight, GraphNode } from "../types/graph";
 
 interface GraphViewProps {
   data: GraphData | null;
@@ -9,6 +9,10 @@ interface GraphViewProps {
   selectedTypes: string[];
   searchQuery: string;
   onNodeClick: (node: GraphNode) => void;
+  /** nós e relações a destacar (os demais ficam esmaecidos) */
+  highlight?: GraphHighlight | null;
+  /** a tela está visível (usado para enquadrar o destaque ao abrir a aba) */
+  active?: boolean;
   width?: number;
   height?: number;
 }
@@ -33,6 +37,8 @@ export const GraphView: React.FC<GraphViewProps> = ({
   selectedTypes,
   searchQuery,
   onNodeClick,
+  highlight,
+  active = true,
   width,
   height,
 }) => {
@@ -78,14 +84,31 @@ export const GraphView: React.FC<GraphViewProps> = ({
     }
   }, [searchQuery, filteredData]);
 
+  // Enquadra os nós destacados quando o destaque muda ou a aba é aberta.
+  useEffect(() => {
+    if (!highlight || !active || !fgRef.current) return;
+    const t = setTimeout(
+      () => fgRef.current?.zoomToFit(800, 60, (n: any) => highlight.nodeIds.has(n.id)),
+      400,
+    );
+    return () => clearTimeout(t);
+  }, [highlight, active, width, height]);
+
+  const linkKeyOf = (link: any) => {
+    const s = typeof link.source === "object" ? link.source.id : link.source;
+    const t = typeof link.target === "object" ? link.target.id : link.target;
+    return `${s}|${t}`;
+  };
+
   const getNodeColor = useCallback((node: any) => {
+    if (highlight && !highlight.nodeIds.has(node.id)) return "rgba(180, 180, 180, 0.18)";
     if (colorMode === "type") {
       return generateColor(node.type || "unknown");
     } else {
       const comm = node.communities?.find((c: any) => c.level === communityLevel);
       return comm ? generateColor(`comm-${comm.community_id}`) : "#cccccc";
     }
-  }, [colorMode, communityLevel]);
+  }, [colorMode, communityLevel, highlight]);
 
   const paintNode = useCallback((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
     const label = node.label;
@@ -106,13 +129,15 @@ export const GraphView: React.FC<GraphViewProps> = ({
         ctx.stroke();
     }
 
-    if (globalScale > 1.5) {
+    // Rótulos: com destaque ativo, só dos nós destacados (e já com pouco zoom).
+    const highlighted = highlight?.nodeIds.has(node.id);
+    if (highlight ? highlighted && globalScale > 0.6 : globalScale > 1.5) {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.fillStyle = 'rgba(30, 30, 30, 0.85)';
       ctx.fillText(label, node.x, node.y + radius + fontSize);
     }
-  }, [getNodeColor, searchQuery]);
+  }, [getNodeColor, searchQuery, highlight]);
 
   return (
     <div className="w-full h-full bg-background relative" style={{ minHeight: "600px" }}>
@@ -145,8 +170,16 @@ export const GraphView: React.FC<GraphViewProps> = ({
             fgRef.current.zoom(4, 2000);
             onNodeClick(node as GraphNode);
           }}
-          linkColor={() => "rgba(150, 150, 150, 0.2)"}
-          linkWidth={(link: any) => Math.min(3, Math.max(0.5, link.weight || 1))}
+          linkColor={(link: any) =>
+            highlight
+              ? highlight.linkKeys.has(linkKeyOf(link))
+                ? "rgba(220, 38, 38, 0.55)"
+                : "rgba(150, 150, 150, 0.04)"
+              : "rgba(150, 150, 150, 0.2)"
+          }
+          linkWidth={(link: any) =>
+            highlight && highlight.linkKeys.has(linkKeyOf(link)) ? 1.5 : Math.min(3, Math.max(0.5, link.weight || 1))
+          }
           cooldownTicks={100}
           d3AlphaDecay={0.02}
         />

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useGraphData } from "../hooks/useGraphData";
+import { X } from "lucide-react";
+import { useGraph } from "../context/GraphDataContext";
 import { GraphView } from "../components/GraphView";
 import { FiltersPanel } from "../components/FiltersPanel";
 import { EntityDetailsPanel } from "../components/EntityDetailsPanel";
@@ -7,8 +8,8 @@ import { Legend } from "../components/Legend";
 import type { GraphNode } from "../types/graph";
 
 /** Visualização do grafo de conhecimento (tela original da aplicação). */
-export const GraphPage: React.FC = () => {
-  const { graphData, meta, loading, error } = useGraphData();
+export const GraphPage: React.FC<{ active?: boolean }> = ({ active = true }) => {
+  const { graphData, meta, loading, error, highlight, setHighlight } = useGraph();
   const [colorMode, setColorMode] = useState<"type" | "community">("type");
   const [communityLevel, setCommunityLevel] = useState<number>(0);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
@@ -70,6 +71,17 @@ export const GraphPage: React.FC = () => {
         setSearchQuery={setSearchQuery}
       />
       <Legend meta={meta} colorMode={colorMode} />
+      {highlight && (
+        <div className="absolute left-1/2 top-4 z-20 flex max-w-xl -translate-x-1/2 items-start gap-3 rounded-lg border bg-background/95 px-4 py-2 shadow-lg backdrop-blur">
+          <div className="text-xs">
+            <div className="font-semibold">Destacando: {highlight.title}</div>
+            <div className="text-muted-foreground">{highlight.description}</div>
+          </div>
+          <button className="rounded p-1 hover:bg-accent" onClick={() => setHighlight(null)} title="Remover destaque">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
       <GraphView
         data={graphData}
         colorMode={colorMode}
@@ -77,6 +89,8 @@ export const GraphPage: React.FC = () => {
         selectedTypes={selectedTypes}
         searchQuery={searchQuery}
         onNodeClick={(node) => setSelectedNode(node)}
+        highlight={highlight}
+        active={active}
         width={size.width}
         height={size.height}
       />
