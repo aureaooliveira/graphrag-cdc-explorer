@@ -17,6 +17,12 @@ data/update_output/
 data/output*lancedb/
 
 # =====================================================================
+# Banco SQLite do backend (histórico de consultas e avaliações).
+# Os resultados finais da avaliação são exportados para evaluation/results.
+# =====================================================================
+storage/
+
+# =====================================================================
 # Documentação
 # Do anteprojeto, só o PDF é versionado; os fontes LaTeX ficam locais.
 # =====================================================================

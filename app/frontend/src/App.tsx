@@ -1,80 +1,74 @@
-import React, { useState, useEffect } from "react";
-import { useGraphData } from "./hooks/useGraphData";
-import { GraphView } from "./components/GraphView";
-import { FiltersPanel } from "./components/FiltersPanel";
-import { EntityDetailsPanel } from "./components/EntityDetailsPanel";
-import { Legend } from "./components/Legend";
-import { GraphNode } from "./types/graph";
+import { useEffect, useState } from "react";
+import { Network, MessageSquareText, History } from "lucide-react";
+import { GraphPage } from "./pages/GraphPage";
+import { QueryPage } from "./pages/QueryPage";
+import { HistoryPage } from "./pages/HistoryPage";
+import { api } from "./lib/api";
+import type { IndexInfo } from "./types/query";
+import { cn } from "@/lib/utils";
+
+type Tab = "graph" | "query" | "history";
+
+const TABS: { id: Tab; label: string; icon: typeof Network }[] = [
+  { id: "graph", label: "Grafo", icon: Network },
+  { id: "query", label: "Consultas", icon: MessageSquareText },
+  { id: "history", label: "Histórico", icon: History },
+];
 
 function App() {
-  const { graphData, meta, loading, error } = useGraphData();
-
-  const [colorMode, setColorMode] = useState<"type" | "community">("type");
-  const [communityLevel, setCommunityLevel] = useState<number>(0);
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [tab, setTab] = useState<Tab>(() => (localStorage.getItem("tab") as Tab) || "graph");
+  const [index, setIndex] = useState<IndexInfo | null>(null);
 
   useEffect(() => {
-    if (meta && selectedTypes.length === 0) {
-      setSelectedTypes(meta.entity_types);
-      if (meta.community_levels.length > 0) {
-        setCommunityLevel(meta.community_levels[0]);
-      }
-    }
-  }, [meta]);
+    localStorage.setItem("tab", tab);
+  }, [tab]);
 
-  if (loading) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-          <p className="text-muted-foreground">Carregando dados do grafo...</p>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    api.index().then(setIndex).catch(() => setIndex(null));
+  }, []);
 
-  if (error) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">
-        <div className="max-w-md p-6 bg-destructive/10 border border-destructive rounded-lg text-center">
-          <h2 className="text-lg font-semibold text-destructive mb-2">Erro ao carregar dados</h2>
-          <p className="text-sm text-muted-foreground">{error}</p>
-        </div>
-      </div>
-    );
-  }
+  const iv = index?.index_version;
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-background text-foreground">
-      <FiltersPanel 
-        meta={meta}
-        colorMode={colorMode}
-        setColorMode={setColorMode}
-        communityLevel={communityLevel}
-        setCommunityLevel={setCommunityLevel}
-        selectedTypes={selectedTypes}
-        setSelectedTypes={setSelectedTypes}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-      />
-
-      <Legend meta={meta} colorMode={colorMode} />
-
-      <GraphView 
-        data={graphData}
-        colorMode={colorMode}
-        communityLevel={communityLevel}
-        selectedTypes={selectedTypes}
-        searchQuery={searchQuery}
-        onNodeClick={(node) => setSelectedNode(node)}
-      />
-
-      <EntityDetailsPanel 
-        node={selectedNode} 
-        onClose={() => setSelectedNode(null)} 
-      />
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
+      <header className="flex h-14 shrink-0 items-center gap-4 border-b px-4">
+        <div className="font-semibold">GraphRAG · CDC</div>
+        <nav className="flex gap-1">
+          {TABS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm",
+                tab === id ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+            </button>
+          ))}
+        </nav>
+        <div className="flex-1" />
+        {index && (
+          <div className="text-right text-xs text-muted-foreground" title={iv?.fingerprint}>
+            {iv ? (
+              <>
+                Índice #{iv.id}
+                {iv.label ? ` (${iv.label})` : ""} · GraphRAG {iv.graphrag_version}
+                {iv.indexed_at ? ` · indexado em ${new Date(iv.indexed_at + (iv.indexed_at.includes("+") ? "" : "Z")).toLocaleDateString("pt-BR")}` : ""}
+              </>
+            ) : (
+              "Índice não registrado"
+            )}
+            {!index.query_ready && <div className="text-destructive">Consultas indisponíveis: {index.query_error}</div>}
+          </div>
+        )}
+      </header>
+      <main className="min-h-0 flex-1">
+        {tab === "graph" && <GraphPage />}
+        {tab === "query" && <QueryPage />}
+        {tab === "history" && <HistoryPage />}
+      </main>
     </div>
   );
 }

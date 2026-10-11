@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { GraphData, CommunityInfo, MetaData } from "../types/graph";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+import type { GraphData, CommunityInfo, MetaData } from "../types/graph";
+import { API_URL } from "../lib/api";
 
 export function useGraphData() {
   const [graphData, setGraphData] = useState<GraphData | null>(null);

@@ -1,6 +1,6 @@
 import React, { useRef, useMemo, useCallback, useState, useEffect } from "react";
 import ForceGraph2D from "react-force-graph-2d";
-import { GraphData, GraphNode, GraphEdge } from "../types/graph";
+import { GraphData, GraphNode } from "../types/graph";
 
 interface GraphViewProps {
   data: GraphData | null;
@@ -36,7 +36,7 @@ export const GraphView: React.FC<GraphViewProps> = ({
   width,
   height,
 }) => {
-  const fgRef = useRef<any>();
+  const fgRef = useRef<any>(null);
   const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
   useEffect(() => {
@@ -91,9 +91,6 @@ export const GraphView: React.FC<GraphViewProps> = ({
     const label = node.label;
     const fontSize = 12 / globalScale;
     ctx.font = `${fontSize}px Sans-Serif`;
-    const textWidth = ctx.measureText(label).width;
-    const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2); // some padding
-
     const degree = node.degree || 1;
     const radius = Math.max(2, Math.sqrt(degree) * 2);
 

@@ -1,8 +1,11 @@
-import pandas as pd
 import os
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
-DATA_DIR = "/data/output"
+import pandas as pd
+
+from app.config import OUTPUT_DIR
+
+DATA_DIR = str(OUTPUT_DIR)
 
 class GraphLoader:
     def __init__(self):
@@ -10,6 +13,14 @@ class GraphLoader:
         self.communities_data: List[Dict[str, Any]] = []
         self.meta_data: Dict[str, Any] = {}
         self.loaded = False
+
+    def reload(self):
+        """Descarta os dados em memória e lê o índice de novo."""
+        self.graph_data = {"nodes": [], "edges": []}
+        self.communities_data = []
+        self.meta_data = {}
+        self.loaded = False
+        self.load_data()
 
     def load_data(self):
         if self.loaded:

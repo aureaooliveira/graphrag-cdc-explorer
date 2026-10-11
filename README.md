@@ -61,11 +61,13 @@ Tudo roda em containers Docker, o que garante a reprodutibilidade do ambiente:
 │   └── output/ cache/ logs/# gerados pela indexação (fora do git)
 ├── docker/graphrag/        # imagem do GraphRAG (versão fixada)
 ├── docs/
+│   ├── architecture.md     # arquitetura, API, eventos e banco
 │   ├── proposal/           # anteprojeto (PDF)
 │   ├── reports/            # relatórios de acompanhamento
 │   └── notes/              # anotações de trabalho
 ├── evaluation/             # avaliação comparativa (em construção)
 ├── scripts/                # utilitários (setup, teste de modelos, inspeção)
+├── storage/                # SQLite do backend: histórico de consultas (fora do git)
 └── docker-compose.yml
 ```
 
@@ -137,10 +139,21 @@ avaliação será executada mais de uma vez.
 
 ### 4. Aplicação web
 
-Backend FastAPI (`/api/graph`, `/api/communities`, `/api/meta`) e frontend React
-que exibem o grafo com filtros por tipo de entidade e comunidade, legenda e painel
-de detalhes. As consultas em linguagem natural pela interface ainda serão
-implementadas.
+Três telas:
+
+- **Grafo**: visualização interativa com filtros por tipo de entidade e comunidade,
+  legenda e painel de detalhes.
+- **Consultas**: perguntas em linguagem natural nas quatro modalidades (local, global,
+  drift e basic), com o passo a passo exibido ao vivo: contexto recuperado (entidades,
+  relações, relatórios de comunidade, trechos), pontos-chave da etapa map (global), árvore
+  de perguntas de acompanhamento (DRIFT), prompt exato enviado ao modelo, resposta e
+  métricas (chamadas ao LLM, tokens e tempo).
+- **Histórico**: todas as consultas ficam gravadas em SQLite com as etapas, o prompt e as
+  métricas, associadas à versão do índice que as respondeu.
+
+O backend usa a mesma biblioteca (GraphRAG 3.1.0), o mesmo `settings.yaml` e o mesmo
+índice da CLI. Detalhes da arquitetura, da API e do banco em
+[`docs/architecture.md`](docs/architecture.md).
 
 ## Como executar
 
@@ -164,6 +177,8 @@ docker compose restart backend                             # recarrega o grafo n
 ```
 
 Aplicação web: <http://localhost:5173> · API: <http://localhost:8000/docs>
+
+Depois de reindexar, recarregue o índice no backend: `curl -X POST http://localhost:8000/api/index/reload` (ou `docker compose restart backend`).
 
 ### Modo local (Ollama, sem custo de API)
 
@@ -206,7 +221,8 @@ docker exec -it graphrag graphrag query "O que é fornecedor segundo o CDC?" --r
 
 - [ ] Indexar o corpus com os modelos em nuvem e validar manualmente entidades e relações
 - [ ] Gerar os prompts com `scripts/prompt_tune.py` (taxonomia + modelo novo) e revisá-los
-- [ ] Implementar as consultas em linguagem natural na aplicação web
+- [x] Consultas em linguagem natural na aplicação web, com o passo a passo e histórico
+- [ ] Destacar no grafo as entidades e relações usadas como contexto de uma consulta
 - [ ] Definir o conjunto de perguntas e executar a avaliação comparativa (`evaluation/`)
 - [ ] Publicar o índice congelado usado na avaliação como *Release*
 

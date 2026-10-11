@@ -31,13 +31,16 @@ services:
     tty: true
     stdin_open: true
 
+  # API: grafo, consultas ao GraphRAG (com as etapas via SSE) e histórico.
+  # Usa o mesmo índice (data/) e a mesma versão do GraphRAG do serviço acima.
   backend:
     build: ./app/backend
     container_name: graphrag-backend
     ports:
       - "8000:8000"
     volumes:
-      - ./data:/data:ro
+      - ./data:/data          # índice, settings, prompts e .env (chave de API)
+      - ./storage:/storage    # SQLite com o histórico de consultas e avaliações
     restart: unless-stopped
 
   frontend:
@@ -47,7 +50,7 @@ services:
       - "5173:5173"
     environment:
       - CHOKIDAR_USEPOLLING=true
-      - VITE_API_URL=http://localhost:8000
+      - API_PROXY_TARGET=http://backend:8000   # o Vite repassa /api ao backend
     depends_on:
       - backend
     restart: unless-stopped

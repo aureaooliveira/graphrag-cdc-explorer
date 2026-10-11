@@ -1,35 +1,54 @@
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-from app.routers import graph
-from app.services.graph_loader import graph_loader
+
+from app.config import GRAPHRAG_ROOT
+from app.db import init_db
+from app.routers import graph, index, query, runs
+from app.services import state
+from app.services.query_service import QueryService
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Load data on startup
-    graph_loader.load_data()
+    init_db()
+    state.query_service = QueryService(GRAPHRAG_ROOT)
+    await index.load_index()
     yield
-    # Cleanup on shutdown (if needed)
-    pass
+
 
 app = FastAPI(
-    title="GraphRAG Visualizer API",
-    description="API for accessing GraphRAG knowledge graph data.",
-    version="1.0.0",
-    lifespan=lifespan
+    title="GraphRAG CDC API",
+    description="Grafo de conhecimento do CDC e consultas ao GraphRAG com rastreamento das etapas.",
+    version="2.0.0",
+    lifespan=lifespan,
 )
 
-# Configure CORS
+# Em desenvolvimento o frontend acessa a API pelo proxy do Vite (/api), então
+# o CORS só é necessário para acesso direto (ex.: scripts ou outra origem).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, restrict this
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(graph.router)
+app.include_router(query.router)
+app.include_router(runs.router)
+app.include_router(index.router)
+
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok", "query_ready": bool(state.query_service and state.query_service.ready)}
+
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to the GraphRAG API. Visit /docs for the documentation."}
+    return {"message": "GraphRAG CDC API. Documentação em /docs."}
