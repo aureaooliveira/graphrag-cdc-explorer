@@ -1,0 +1,208 @@
+% ==============================================================================
+% Monografia - Áurea Santos de Oliveira
+% Capítulo 2 - Referencial Teórico e Tecnologias Utilizadas
+% ==============================================================================
+\chapter{Referencial Teórico e Tecnologias Utilizadas}
+\label{sec-referencial}
+
+Este capítulo apresenta os fundamentos teóricos e as tecnologias que sustentam o trabalho. A Seção~\ref{sec-referencial-llm} introduz os modelos de linguagem de grande porte e os conceitos de \textit{token}, janela de contexto, temperatura e custo, que são recorrentes nos capítulos seguintes. A Seção~\ref{sec-referencial-embeddings} trata de \textit{embeddings} e busca vetorial. A Seção~\ref{sec-referencial-rag} apresenta a geração aumentada por recuperação e suas limitações. As seções~\ref{sec-referencial-kg} e~\ref{sec-referencial-comunidades} tratam de grafos de conhecimento e de detecção de comunidades, que fundamentam o RAG baseado em grafos, apresentado na Seção~\ref{sec-referencial-graphrag}. A Seção~\ref{sec-referencial-juridico} discute o domínio jurídico e a estrutura do Código de Defesa do Consumidor. Por fim, a Seção~\ref{sec-referencial-tecnologias} apresenta as tecnologias utilizadas no desenvolvimento.
+
+%%% Início de seção. %%%
+\section{Modelos de Linguagem de Grande Porte}
+\label{sec-referencial-llm}
+
+Modelos de linguagem de grande porte (LLMs) são redes neurais treinadas para estimar a probabilidade da próxima unidade de texto dada uma sequência anterior. Os modelos atuais baseiam-se na arquitetura \textit{Transformer} \cite{vaswani2017attention}, cujo mecanismo de atenção permite que cada posição da sequência considere todas as demais, e são treinados sobre grandes volumes de texto. A partir de certa escala, esses modelos passaram a resolver tarefas variadas -- responder perguntas, resumir, extrair informação, traduzir -- apenas a partir de instruções e de alguns exemplos fornecidos no próprio texto de entrada, sem treinamento adicional \cite{brown2020language}. Essa capacidade de aprender a tarefa pelos exemplos do \textit{prompt} (\textit{few-shot learning}) é a base de todas as etapas do GraphRAG que utilizam LLMs: a extração de entidades e relações, por exemplo, é feita fornecendo ao modelo instruções e exemplos de extração seguidos do texto a ser processado.
+
+\subsection{\textit{Tokens} e janela de contexto}
+\label{sec-referencial-llm-tokens}
+
+Os modelos não processam caracteres nem palavras, mas \textit{tokens}: unidades de texto obtidas por algoritmos de segmentação em subpalavras, como o \textit{Byte Pair Encoding} \cite{sennrich2016bpe}. Palavras frequentes tornam-se um único \textit{token}, enquanto palavras raras são divididas em vários. Em português, um \textit{token} corresponde, em média, a três ou quatro caracteres. Neste trabalho, utiliza-se a codificação \code{o200k\_base}, a mesma dos modelos da OpenAI empregados, para medir o tamanho dos textos.
+
+O número máximo de \textit{tokens} que o modelo pode considerar em uma chamada -- somando instruções, contexto, pergunta e resposta -- é chamado de janela de contexto. Mesmo com janelas grandes, o desempenho dos modelos não é uniforme ao longo do contexto: informações posicionadas no meio de contextos longos tendem a ser menos aproveitadas do que as posicionadas no início ou no fim \cite{liu2024lost}. Por isso, sistemas de RAG não se limitam a preencher toda a janela disponível, mas definem orçamentos de contexto e selecionam o que inserir.
+
+\subsection{Custo}
+\label{sec-referencial-llm-custo}
+
+Modelos oferecidos como serviço são cobrados por \textit{token}, com preços distintos para os \textit{tokens} de entrada (o \textit{prompt}) e os de saída (o texto gerado); os de saída costumam ser várias vezes mais caros. O custo de uma operação é, portanto, aproximadamente o número de chamadas ao modelo multiplicado pelo tamanho de cada chamada. Essa relação é central neste trabalho: as modalidades de consulta do GraphRAG diferem justamente no número de chamadas que fazem e no tamanho do contexto de cada uma, e o custo da indexação é dominado pelas chamadas de extração do grafo.
+
+\subsection{Temperatura e modelos de raciocínio}
+\label{sec-referencial-llm-temperatura}
+
+Na geração, o modelo produz, a cada passo, uma distribuição de probabilidade sobre os \textit{tokens} possíveis, da qual o próximo \textit{token} é amostrado. A temperatura é um parâmetro que reescala essa distribuição: valores próximos de zero tornam a escolha quase determinística (sempre o \textit{token} mais provável), e valores maiores aumentam a diversidade do texto gerado \cite{holtzman2020curious}. Temperaturas baixas são tradicionalmente usadas em tarefas de extração e em avaliações, por favorecerem a reprodutibilidade.
+
+Uma classe mais recente de modelos, chamados modelos de raciocínio, é treinada para produzir uma cadeia de raciocínio interna antes da resposta final -- ideia relacionada ao \textit{chain-of-thought prompting} \cite{wei2022chain}. Nesses modelos, os \textit{tokens} de raciocínio também são cobrados como \textit{tokens} de saída, mas não aparecem no texto devolvido, e parâmetros de amostragem como a temperatura frequentemente não podem ser alterados. Os modelos utilizados neste trabalho pertencem a essa classe e aceitam apenas temperatura igual a 1, restrição que teve consequências metodológicas discutidas no Capítulo~\ref{sec-indexacao}.
+
+\subsection{Alucinação}
+\label{sec-referencial-llm-alucinacao}
+
+Alucinação é a geração de conteúdo fluente e plausível, porém não fundamentado na entrada ou nos fatos \cite{ji2023survey}. No domínio jurídico, o problema é particularmente grave: citar um artigo inexistente ou atribuir a um dispositivo um conteúdo que ele não possui compromete a utilidade da resposta. Mesmo ferramentas comerciais de pesquisa jurídica baseadas em RAG apresentam taxas relevantes de respostas incorretas ou sem fundamentação \cite{magesh2024hallucination}. Fundamentar a resposta em trechos recuperados e exigir que o modelo cite suas fontes -- como fazem os \textit{prompts} do GraphRAG -- reduz, mas não elimina, esse risco.
+
+%%% Início de seção. %%%
+\section{\textit{Embeddings} e Busca Vetorial}
+\label{sec-referencial-embeddings}
+
+Um \textit{embedding} é uma representação de um texto como um vetor de números reais de dimensão fixa, produzida por um modelo treinado de forma que textos de significado próximo resultem em vetores próximos \cite{reimers2019sentence}. A proximidade é geralmente medida pela similaridade de cosseno:
+
+\begin{equation}
+\label{eq-cosseno}
+\mathrm{sim}(\mathbf{u}, \mathbf{v}) = \frac{\mathbf{u} \cdot \mathbf{v}}{\lVert \mathbf{u} \rVert \, \lVert \mathbf{v} \rVert}
+\end{equation}
+
+\noindent que vale 1 para vetores de mesma direção e diminui à medida que os vetores se afastam. Com \textit{embeddings}, a busca por significado reduz-se a encontrar os vetores mais próximos do vetor da consulta. Modelos de recuperação densa treinados para esse fim superam métodos baseados em palavras-chave em diversas tarefas de perguntas e respostas \cite{karpukhin2020dense}.
+
+Para coleções grandes, a busca exata pelos vizinhos mais próximos é custosa, e são utilizados índices de busca aproximada e bancos de dados vetoriais especializados \cite{johnson2019billion}. O GraphRAG utiliza por padrão o LanceDB \cite{lancedb}, um banco vetorial embarcado que armazena os vetores em arquivos locais, sem necessidade de um servidor. Neste trabalho, os \textit{embeddings} são gerados pelo modelo \code{text-embedding-3-large} da OpenAI \cite{openai2024embeddings}, que produz vetores de 3.072 dimensões.
+
+%%% Início de seção. %%%
+\section{Geração Aumentada por Recuperação (RAG)}
+\label{sec-referencial-rag}
+
+O paradigma de \textit{Retrieval-Augmented Generation} \cite{lewis2020retrieval} combina um mecanismo de recuperação de informação a um modelo gerador. Em vez de depender exclusivamente do conhecimento armazenado nos pesos do modelo, o sistema recupera, no momento da consulta, os trechos mais relevantes de uma base de conhecimento externa e os inclui no \textit{prompt}. Com isso, o conhecimento do sistema pode ser atualizado sem novo treinamento, as respostas podem ser restritas a uma fonte confiável e cada afirmação pode ser rastreada até o trecho que a fundamenta \cite{gao2023retrieval}.
+
+Na forma mais simples, chamada de RAG vetorial ou ingênuo (\textit{naive RAG}), o processo tem duas fases (Figura~\ref{fig-rag-vetorial}). Na \textbf{indexação}, os documentos são divididos em fragmentos (\textit{chunks}) de tamanho limitado, geralmente com uma pequena sobreposição entre fragmentos consecutivos, e cada fragmento é convertido em um \textit{embedding} e armazenado em um banco vetorial. Na \textbf{consulta}, a pergunta é convertida em \textit{embedding}, os $k$ fragmentos mais similares são recuperados e inseridos em um \textit{prompt} junto com instruções e a pergunta, e o modelo gera a resposta.
+
+\begin{figure}[htb]
+\centering
+\begin{tikzpicture}[
+  node distance=6mm and 8mm,
+  box/.style={draw, rounded corners=2pt, align=center, font=\footnotesize, minimum height=9mm, text width=22mm, fill=gray!8},
+  db/.style={draw, cylinder, shape border rotate=90, aspect=0.25, align=center, font=\footnotesize, minimum height=11mm, text width=18mm, fill=blue!6},
+  arr/.style={-{Stealth[length=2mm]}, thick},
+  lab/.style={font=\footnotesize\bfseries}
+]
+\node[box] (docs) {Documentos};
+\node[box, right=of docs] (chunk) {Divisão em fragmentos};
+\node[box, right=of chunk] (emb) {Modelo de \textit{embeddings}};
+\node[db, right=of emb] (vdb) {Banco vetorial};
+\draw[arr] (docs) -- (chunk); \draw[arr] (chunk) -- (emb); \draw[arr] (emb) -- (vdb);
+\node[box, below=14mm of docs] (q) {Pergunta};
+\node[box, right=of q] (qemb) {\textit{Embedding} da pergunta};
+\node[box, right=of qemb] (topk) {$k$ fragmentos mais similares};
+\node[box, right=of topk, fill=orange!10] (llm) {LLM: instruções + fragmentos + pergunta};
+\node[box, below=7mm of llm, fill=green!8] (resp) {Resposta com citações};
+\draw[arr] (q) -- (qemb); \draw[arr] (qemb) -- (topk); \draw[arr] (topk) -- (llm); \draw[arr] (llm) -- (resp);
+\draw[arr, dashed] (vdb) -- node[right, font=\scriptsize]{similaridade} (topk);
+\node[lab, above=1mm of chunk.north west, anchor=south west] {Indexação};
+\node[lab, above=1mm of qemb.north west, anchor=south west] {Consulta};
+\end{tikzpicture}
+\caption{Funcionamento do RAG vetorial tradicional.}
+\label{fig-rag-vetorial}
+\end{figure}
+
+Diversas variações procuram melhorar a recuperação. Uma delas, relevante para este trabalho por ser usada na busca DRIFT do GraphRAG, é a técnica HyDE (\textit{Hypothetical Document Embeddings}) \cite{gao2023hyde}: em vez de buscar com o \textit{embedding} da pergunta, o modelo primeiro escreve uma resposta hipotética, e o \textit{embedding} dessa resposta é usado na busca, por estar mais próximo, em forma e vocabulário, dos documentos procurados.
+
+Apesar de eficaz em muitos cenários, o RAG vetorial apresenta limitações relevantes para este trabalho:
+
+\begin{itemize}
+    \item \textbf{Fragmentos isolados.} A recuperação considera cada fragmento separadamente, sem representar as relações entre partes do corpus. Perguntas que exigem conectar vários trechos (raciocínio em múltiplos saltos, ou \textit{multi-hop}) dependem de que todos esses trechos sejam, individualmente, similares à pergunta.
+    \item \textbf{Perguntas globais.} Perguntas sobre o corpus como um todo -- ``quais são os principais temas?'', ``quais são os direitos do consumidor?'' -- exigiriam sintetizar informação dispersa por muitos fragmentos, o que não cabe em um pequeno conjunto recuperado. \citeonline{edge2024global} caracterizam essas perguntas como tarefas de sumarização focada na consulta (\textit{query-focused summarization}), para as quais o RAG vetorial não é adequado.
+    \item \textbf{Similaridade não é relevância.} Fragmentos que compartilham o vocabulário da pergunta podem ser recuperados à frente do trecho que efetivamente responde a ela. No domínio jurídico, em que muitos artigos usam os mesmos termos (``consumidor'', ``fornecedor'', ``produto''), esse efeito é acentuado.
+\end{itemize}
+
+%%% Início de seção. %%%
+\section{Grafos de Conhecimento}
+\label{sec-referencial-kg}
+
+Um grafo de conhecimento representa conhecimento como um grafo cujos nós são entidades do domínio e cujas arestas são relações entre elas \cite{hogan2021knowledge}. Na variante de grafo de propriedades, nós e arestas podem carregar atributos -- tipo, descrição, peso. Grafos de conhecimento permitem consultas que percorrem relações (``quais obrigações decorrem deste artigo, e quais sanções se aplicam ao seu descumprimento?'') e oferecem uma representação explícita e inspecionável do conteúdo do corpus.
+
+Tradicionalmente, a construção de grafos de conhecimento a partir de texto exigia sistemas de extração de informação treinados para cada domínio. LLMs tornaram possível extrair entidades e relações a partir de instruções e de poucos exemplos, o que aproximou as duas áreas: grafos podem complementar LLMs com conhecimento estruturado e verificável, e LLMs podem construir e consultar grafos \cite{pan2024unifying}. O custo dessa abordagem é que a qualidade do grafo depende da qualidade da extração feita pelo modelo -- que pode omitir entidades, criar entidades duplicadas com nomes diferentes ou relações sem fundamento no texto -- e que cada fragmento do corpus exige ao menos uma chamada ao modelo.
+
+%%% Início de seção. %%%
+\section{Detecção de Comunidades}
+\label{sec-referencial-comunidades}
+
+Em grafos reais, é comum que os nós se organizem em grupos densamente conectados internamente e esparsamente conectados entre si, chamados comunidades \cite{fortunato2010community}. A detecção de comunidades busca particionar o grafo nesses grupos. Uma medida clássica da qualidade de uma partição é a modularidade \cite{newman2006modularity}, que compara a fração de arestas internas às comunidades com a fração esperada em um grafo aleatório com os mesmos graus:
+
+\begin{equation}
+\label{eq-modularidade}
+Q = \frac{1}{2m} \sum_{i,j} \left[ A_{ij} - \frac{k_i k_j}{2m} \right] \delta(c_i, c_j)
+\end{equation}
+
+\noindent em que $A$ é a matriz de adjacência, $k_i$ é o grau do nó $i$, $m$ é o número de arestas e $\delta(c_i, c_j)$ vale 1 se os nós $i$ e $j$ estão na mesma comunidade.
+
+O algoritmo de Louvain \cite{blondel2008fast} otimiza a modularidade de forma gulosa e hierárquica: move nós entre comunidades enquanto houver ganho e, em seguida, agrega cada comunidade em um único nó e repete o processo. O algoritmo de Leiden \cite{traag2019louvain} corrige um defeito do Louvain, que pode produzir comunidades mal conectadas ou até desconexas, com uma etapa de refinamento que garante comunidades bem conectadas. O GraphRAG utiliza uma versão hierárquica do Leiden: comunidades maiores que um tamanho máximo são novamente particionadas, formando uma hierarquia em que o nível 0 contém poucas comunidades amplas e os níveis seguintes, comunidades progressivamente menores e mais específicas.
+
+%%% Início de seção. %%%
+\section{RAG Baseado em Grafos}
+\label{sec-referencial-graphrag}
+
+O RAG baseado em grafos (\textit{Graph RAG}) reúne abordagens que utilizam grafos na recuperação: o conhecimento é organizado como grafo, e a recuperação seleciona nós, arestas, caminhos ou subgrafos relevantes para a pergunta, que são convertidos em texto e inseridos no \textit{prompt} \cite{peng2024graph}. Em relação ao RAG vetorial, essas abordagens preservam explicitamente a estrutura relacional do corpus, permitem percorrer relações em múltiplos saltos e possibilitam resumos sobre grupos de entidades.
+
+O GraphRAG da Microsoft \cite{edge2024global} é uma dessas abordagens, voltada especificamente para corpora de texto não estruturado. Seu processo pode ser resumido em quatro passos: (i) um LLM extrai entidades e relações de cada fragmento do corpus, formando um grafo de conhecimento; (ii) o grafo é particionado em uma hierarquia de comunidades com o algoritmo de Leiden; (iii) o LLM gera, para cada comunidade, um relatório que resume suas entidades, relações e temas; e (iv) as consultas utilizam essas estruturas. Para perguntas globais, cada relatório de comunidade gera uma resposta parcial, e as respostas parciais são combinadas em uma resposta final (\textit{map-reduce}). Os autores mostraram que essa abordagem produz respostas mais abrangentes e diversas que o RAG vetorial para perguntas globais sobre corpora da ordem de um milhão de \textit{tokens}, com avaliação feita por um LLM em comparações par a par. A biblioteca evoluiu depois do artigo, incorporando a busca local (centrada em entidades) e a busca DRIFT \cite{microsoft2024drift}, que combina as buscas global e local. O \textit{framework} é descrito em detalhes no Capítulo~\ref{sec-graphrag}.
+
+%%% Início de seção. %%%
+\section{O Domínio Jurídico e o Código de Defesa do Consumidor}
+\label{sec-referencial-juridico}
+
+\subsection{Estrutura dos textos legislativos}
+\label{sec-referencial-juridico-estrutura}
+
+A elaboração e a redação das leis brasileiras seguem a Lei Complementar nº 95/1998 \cite{brasil1998lc95}, que define a estrutura dos textos legislativos. A unidade básica é o artigo, que pode se desdobrar em parágrafos, incisos, alíneas e itens. Os artigos podem ser agrupados em seções e subseções; estas, em capítulos; capítulos, em títulos; títulos, em livros; e livros, em partes. A mesma lei define regras de numeração: os artigos são numerados com ordinal até o nono (``Art. 9º'') e com cardinal a partir do décimo (``Art. 10.''). Artigos acrescentados por leis posteriores entre dois artigos existentes recebem o número do anterior seguido de letra maiúscula (``Art. 54-A''), sem renumeração dos demais. Dispositivos vetados pelo Presidente da República ou revogados por lei posterior permanecem no texto compilado com as indicações ``(Vetado)'' ou ``(Revogado)''.
+
+Essa estrutura tem duas consequências importantes para o processamento automático. A primeira é que ela é regular o suficiente para ser reconhecida por expressões regulares, permitindo extrair cada artigo com a sua localização na hierarquia. A segunda é que a hierarquia carrega significado: um artigo localizado no capítulo ``Das Práticas Abusivas'' trata de práticas abusivas mesmo que o termo não apareça em seu texto. Preservar essa informação ao dividir o texto em fragmentos é, portanto, relevante para a qualidade da recuperação e da extração.
+
+\subsection{O Código de Defesa do Consumidor}
+\label{sec-referencial-juridico-cdc}
+
+O Código de Defesa do Consumidor (Lei nº 8.078, de 11 de setembro de 1990) \cite{brasil1990cdc} estabelece normas de proteção e defesa do consumidor, de ordem pública e interesse social. O texto compilado utilizado neste trabalho tem 130 artigos -- os 119 artigos originais e 11 artigos acrescentados posteriormente, identificados por letras (42-A, 54-A a 54-G e 104-A a 104-C) --, organizados em seis títulos:
+
+\begin{itemize}
+    \item \textbf{Título I -- Dos Direitos do Consumidor} (arts. 1º a 60): disposições gerais e conceitos de consumidor, fornecedor, produto e serviço; política nacional das relações de consumo; direitos básicos (art. 6º); qualidade de produtos e serviços, responsabilidade pelo fato e pelo vício, decadência e prescrição; práticas comerciais (oferta, publicidade, práticas abusivas, cobrança de dívidas, bancos de dados); proteção contratual (cláusulas abusivas, contratos de adesão); prevenção e tratamento do superendividamento (arts. 54-A a 54-G, incluídos pela Lei nº 14.181/2021 \cite{brasil2021lei14181}); e sanções administrativas;
+    \item \textbf{Título II -- Das Infrações Penais} (arts. 61 a 80): crimes contra as relações de consumo;
+    \item \textbf{Título III -- Da Defesa do Consumidor em Juízo} (arts. 81 a 104-C): ações coletivas, coisa julgada e conciliação no superendividamento;
+    \item \textbf{Título IV -- Do Sistema Nacional de Defesa do Consumidor} (arts. 105 e 106);
+    \item \textbf{Título V -- Da Convenção Coletiva de Consumo} (arts. 107 e 108);
+    \item \textbf{Título VI -- Disposições Finais} (arts. 109 a 119).
+\end{itemize}
+
+O CDC é um exemplo típico de texto de alta densidade relacional: os conceitos definidos nos primeiros artigos são usados em todo o código; direitos do Título I correspondem a obrigações do fornecedor, a sanções administrativas e a crimes do Título II; e a tutela coletiva do Título III remete a outras leis, como a Lei da Ação Civil Pública. O texto também contém doze artigos inteiramente vetados e diversos parágrafos e incisos vetados dentro de artigos vigentes.
+
+\subsection{Processamento de linguagem natural no domínio jurídico}
+\label{sec-referencial-juridico-pln}
+
+O domínio jurídico tem vocabulário e estilo próprios, o que motivou modelos de linguagem especializados, como o LEGAL-BERT \cite{chalkidis2020legal}, e sistemas que combinam LLMs a bases de conhecimento jurídicas, como o ChatLaw \cite{cui2023chatlaw}. Com os LLMs de uso geral, o RAG tornou-se a abordagem predominante para assistentes jurídicos, por permitir fundamentar as respostas em legislação e jurisprudência atualizadas. A avaliação de ferramentas comerciais desse tipo mostrou, contudo, que a recuperação de trechos relevantes não garante respostas corretas: as ferramentas avaliadas ainda produziam afirmações incorretas ou com citações que não as sustentavam \cite{magesh2024hallucination}. Esses resultados motivam investigar estratégias de recuperação que representem melhor a estrutura relacional do direito, como a proposta neste trabalho.
+
+%%% Início de seção. %%%
+\section{Tecnologias Utilizadas}
+\label{sec-referencial-tecnologias}
+
+Como o foco do trabalho é a investigação do GraphRAG, as tecnologias de apoio foram escolhidas priorizando a integração direta com a biblioteca, a simplicidade e a reprodutibilidade. Esta seção apresenta brevemente cada uma; a forma como foram utilizadas é descrita nos capítulos~\ref{sec-indexacao} e~\ref{sec-aplicacao}.
+
+\subsection{Biblioteca GraphRAG e componentes de dados}
+\label{sec-referencial-tecnologias-graphrag}
+
+\begin{itemize}
+    \item \textbf{GraphRAG} \cite{graphraggithub, graphragdocs}: biblioteca Python de código aberto (licença MIT) que implementa a indexação e as consultas descritas no Capítulo~\ref{sec-graphrag}. É utilizada pela linha de comando (\textit{Command Line Interface} -- CLI), para indexar e ajustar \textit{prompts}, e como biblioteca, pelo \textit{backend} da aplicação. Este trabalho utiliza a versão 3.1.0, fixada em todos os ambientes.
+    \item \textbf{LiteLLM} \cite{litellm}: biblioteca que oferece uma interface única para APIs de diversos provedores de modelos (OpenAI, Anthropic, Google, Ollama, entre outros). O GraphRAG a utiliza para todas as chamadas a modelos, o que permite trocar de provedor alterando apenas a configuração.
+    \item \textbf{Apache Parquet} \cite{parquet}: formato de arquivo colunar em que o GraphRAG grava as tabelas produzidas pela indexação (documentos, fragmentos, entidades, relações, comunidades e relatórios).
+    \item \textbf{LanceDB} \cite{lancedb}: banco vetorial embarcado em que o GraphRAG armazena os \textit{embeddings}.
+    \item \textbf{Modelos da OpenAI} \cite{openaidocs}: modelos de linguagem e de \textit{embeddings} acessados por API, escolhidos por etapa conforme descrito na Seção~\ref{sec-indexacao-modelos}.
+    \item \textbf{Ollama} \cite{ollama}: ferramenta para executar modelos de código aberto localmente, utilizada na primeira versão do projeto e mantida como configuração alternativa.
+\end{itemize}
+
+\subsection{\textit{Backend}}
+\label{sec-referencial-tecnologias-backend}
+
+\begin{itemize}
+    \item \textbf{Python} e \textbf{FastAPI} \cite{fastapi}: o \textit{backend} é escrito em Python por ser a linguagem do GraphRAG, o que permite usar a biblioteca diretamente, sem intermediários. O FastAPI é um \textit{framework} web assíncrono, adequado a operações demoradas de entrada e saída como chamadas a modelos, e gera automaticamente a documentação da API.
+    \item \textbf{REST} \cite{fielding2000rest}: estilo arquitetural adotado na API, em que recursos (consultas, histórico, grafo) são acessados por URLs e métodos HTTP.
+    \item \textbf{\textit{Server-Sent Events}} (SSE) \cite{whatwgsse}: padrão da web para que o servidor envie uma sequência de eventos ao navegador em uma única conexão HTTP. É utilizado para transmitir, à medida que acontecem, as etapas de cada consulta.
+    \item \textbf{SQLite} \cite{sqlite} e \textbf{SQLAlchemy} \cite{sqlalchemy}: o SQLite é um banco de dados relacional embarcado, armazenado em um único arquivo, sem servidor; o SQLAlchemy é a biblioteca de mapeamento objeto-relacional (ORM) utilizada para definir as tabelas e acessá-las a partir do Python.
+\end{itemize}
+
+\subsection{\textit{Frontend}}
+\label{sec-referencial-tecnologias-frontend}
+
+\begin{itemize}
+    \item \textbf{React} \cite{react} e \textbf{TypeScript}: o \textit{frontend} é uma aplicação de página única (\textit{Single Page Application} -- SPA) construída com React, biblioteca de componentes de interface, e escrita em TypeScript, que acrescenta tipagem estática ao JavaScript.
+    \item \textbf{Vite} \cite{vite}: ferramenta de desenvolvimento e empacotamento. Além de servir a aplicação, seu servidor de desenvolvimento atua como \textit{proxy} para a API, como descrito no Capítulo~\ref{sec-aplicacao}.
+    \item \textbf{Tailwind CSS} \cite{tailwind} e componentes no estilo \textbf{shadcn/ui}: estilização por classes utilitárias e componentes de interface reutilizáveis.
+    \item \textbf{react-force-graph} \cite{forcegraph}: componente de visualização de grafos com leiaute por simulação de forças, desenhado em \textit{canvas}, capaz de exibir os mais de mil nós e seis mil arestas do grafo do CDC com interação (zoom, arraste, seleção).
+\end{itemize}
+
+\subsection{Infraestrutura}
+\label{sec-referencial-tecnologias-infra}
+
+\begin{itemize}
+    \item \textbf{Docker} e \textbf{Docker Compose} \cite{docker}: cada componente (ambiente de indexação, \textit{backend}, \textit{frontend} e, opcionalmente, o servidor de modelos locais) é executado em um contêiner, com dependências e versões definidas em arquivos de imagem. O Docker Compose descreve e orquestra os serviços em um único arquivo, o que garante que o sistema seja executado da mesma forma em qualquer máquina.
+    \item \textbf{Git} e \textbf{GitHub}: controle de versão do código, da configuração e dos \textit{prompts}, e publicação do índice gerado como versão (\textit{release}) do repositório.
+\end{itemize}

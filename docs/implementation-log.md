@@ -525,6 +525,9 @@ comunidades inteiras.
 | 13.7 | Contexto das buscas local/basic notificado só depois da resposta | `local_search/search.py`, `basic_search/search.py` | Não é possível mostrar o contexto antes da geração usando só os callbacks | `build_context` envolvido na instância do motor (seção 12.2) |
 | 13.8 | Métricas de tokens são contadas pelo tokenizer sobre o texto | buscas | Não incluem tokens de raciocínio dos modelos GPT-6; subestimam o custo real | Usar o painel do provedor para custo; registrar a ressalva no relatório |
 | 13.9 | LiteLLM do container não conhece os modelos GPT-6 | `litellm` 1.86.2 | `drop_params` não filtra parâmetros não suportados | Parâmetros compatíveis definidos explicitamente |
+| 13.10 | Na DRIFT, `local_search_text_unit_prop` (0,9) + `local_search_community_prop` (0,1) = 1 | `config/defaults.py`, `local_search/mixed_context.py` | Sobra 0% do contexto das buscas locais para entidades e relações; e os 10% de relatórios (1.200 tokens) são menores que qualquer relatório deste índice (menor ~1.300). Medido: 60 buscas locais com 0 entidades, 0 relações e 0 relatórios. A DRIFT só usa o grafo no primer | Decisão pendente (ver `docs/notes/configuracao-buscas.md`) |
+| 13.11 | Na DRIFT, as perguntas de cada rodada são escolhidas por sorteio (`rank_incomplete_actions()` sem pontuação → `random.shuffle`); a resposta hipotética (HyDE) usa um relatório sorteado como modelo | `drift_search/state.py`, `primer.py` | Fonte de variação entre execuções; as notas das perguntas não priorizam nada | Registrar no relatório |
+| 13.12 | Opções `primer_llm_max_tokens`, `data_max_tokens`, `reduce_max_tokens` e `concurrency` da DRIFT não são lidas pelo código | `drift_search/` | Alterá-las não tem efeito | Registrar |
 
 Os itens 13.1 e 13.2 merecem destaque no relatório: sem o contorno de 13.1, quem usa a
 biblioteca diretamente teria um baseline que sempre "responde" vazio, o que distorceria
@@ -580,15 +583,54 @@ relatórios.
   12.4 — subgrafo da consulta local do art. 49 (26 entidades, 9 relações) e destaque
   no grafo completo funcionando.
 
+### 15.1 Consulta DRIFT real (12/10/2026)
+
+"Quais são os direitos básicos do consumidor?", nível 2, configuração padrão da DRIFT:
+67 chamadas (1 HyDE + 5 primer + 60 buscas locais + 1 reduce), 524.646 tokens de
+entrada, 62.925 de saída, 221 s. Resposta completa e correta (art. 6º). Não houve falta
+de tokens: a árvore tem 502 perguntas, das quais só 61 foram respondidas, o que é o
+funcionamento normal do algoritmo (3 rodadas × 20 perguntas; as demais ficam na fila).
+Análise detalhada e cenários de configuração em `docs/notes/configuracao-buscas.md`
+(problemas 13.10 a 13.12).
+
+**Problema de interface observado**: a etapa "Raciocínio DRIFT" diz "502 pergunta(s)
+respondida(s)" e não distingue as perguntas não respondidas (sem resposta e com 0
+chamadas); a pergunta raiz mostra as respostas do primer concatenadas. Correção adiada
+(pausa nas implementações a pedido da autora).
+
 ## 16. Pendências e próximos passos
 
 - Definir o nível de comunidade da busca global para a avaliação (seção 14).
+- Definir a configuração da DRIFT para a avaliação (proporções de contexto e
+  exploração; `docs/notes/configuracao-buscas.md`).
+- Interface da DRIFT: marcar as perguntas não respondidas e corrigir a contagem (15.1).
 - Avaliação: conjunto de perguntas (`evaluation/questions.csv`), script
   `evaluation/run_queries.py` usando a mesma API (`source = "evaluation"`), exportação
   para `evaluation/results/`, notas manuais (`assessments`).
 - Publicar o índice congelado da avaliação como release `v1.0.0`.
 
-## 17. Histórico cronológico
+## 17. Documentação das configurações de busca e início da monografia (13/10/2026)
+
+- `docs/notes/configuracao-buscas.md`: todas as opções das buscas basic, local, global e
+  DRIFT do GraphRAG 3.1.0, com padrão, efeito no código, impacto em qualidade, número de
+  chamadas e tokens, valores medidos, cenários de custo da DRIFT e recomendação. Nota:
+  o padrão de `community_prop` da busca **local** é 0,15 (e não 0,25, valor padrão da
+  classe `LocalSearchMixedContext`, que o `settings` sobrescreve).
+- Monografia em `docs/paper/` (modelo LaTeX do colegiado, abnTeX2):
+  `monografia-aureaoliveira.tex` (arquivo principal) e capítulos `ch0-resumo`,
+  `ch1-introducao`, `ch2-referencial`, `ch3-graphrag` (o framework em detalhe: pacotes,
+  pipeline, dados, consultas, prompts, configuração, defeitos), `ch4-indexacao`,
+  `ch5-aplicacao`, `ch6-avaliacao` (estrutura, a escrever), `ch7-conclusoes` (rascunho)
+  e `apA-configuracao` (settings.yaml via `\lstinputlisting`). Bibliografia ampliada
+  (entradas do anteprojeto corrigidas: autor "Newman Cheng" no artigo do GraphRAG e
+  arXiv do ChatLaw). Figuras em TikZ (RAG vetorial, pipeline, DRIFT, arquitetura,
+  banco) e capturas de tela de consultas reais (geradas com o banco real e o índice
+  real, em navegador automatizado). Trechos a completar marcados com `\aluno{}` e
+  `\pendente{}`. Compila com `latexmk -pdf` (84 páginas).
+- O arquivo do modelo `pg-nomealuno.tex` e o capítulo `ch6-dicaslatex.tex` não são mais
+  usados pelo arquivo principal.
+
+## 18. Histórico cronológico
 
 | Data | Etapa |
 |---|---|
@@ -597,3 +639,5 @@ relatórios.
 | 08/10/2026 | Nova taxonomia; script de prompt-tune; indexação v1 com `gpt-6.1-sol`; pacote da release v0.1.0; correção do frontend (Tailwind e `.dockerignore`) |
 | 11/10/2026 | Backend de consultas com etapas (SSE) e SQLite; telas de Consultas e Histórico; documentação da arquitetura; testes reais das buscas local e basic |
 | 11/10/2026 | Destaque do contexto no grafo (subgrafo por consulta e destaque no grafo completo) |
+| 12/10/2026 | Consulta DRIFT real; análise do custo e das proporções de contexto da DRIFT |
+| 13/10/2026 | Documentação das opções de busca; primeira versão da monografia em LaTeX (caps. 1 a 5) |

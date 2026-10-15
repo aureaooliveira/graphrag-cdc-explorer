@@ -1,0 +1,90 @@
+% ==============================================================================
+% Monografia - Áurea Santos de Oliveira
+% Capítulo 1 - Introdução
+% ==============================================================================
+\chapter{Introdução}
+\label{sec-intro}
+
+Modelos de linguagem de grande porte (\textit{Large Language Models} -- LLMs) \cite{vaswani2017attention, brown2020language} tornaram-se capazes de responder perguntas em linguagem natural sobre praticamente qualquer assunto. Seu conhecimento, no entanto, é limitado ao que estava presente nos dados de treinamento e está sujeito a erros factuais apresentados com aparente segurança, fenômeno conhecido como alucinação \cite{ji2023survey}. Para aplicações em que a resposta precisa estar fundamentada em um conjunto específico de documentos -- como uma lei --, a abordagem mais utilizada é a geração aumentada por recuperação (\textit{Retrieval-Augmented Generation} -- RAG) \cite{lewis2020retrieval}: no momento da consulta, os trechos mais relevantes de uma base de conhecimento externa são recuperados e inseridos no contexto do modelo, que gera a resposta a partir deles.
+
+Na forma mais comum de RAG, o texto é dividido em fragmentos (\textit{chunks}), cada fragmento é convertido em um vetor numérico (\textit{embedding}) e, na consulta, recuperam-se os fragmentos cujos vetores são mais similares ao vetor da pergunta \cite{gao2023retrieval}. Essa estratégia funciona bem quando a resposta está concentrada em poucos trechos, mas apresenta limitações quando o conhecimento tem estrutura fortemente relacional e a resposta depende de conectar informações dispersas pelo corpus. Essa situação é recorrente em textos legislativos: artigos remetem uns aos outros, estabelecem definições usadas em outros pontos da lei, preveem exceções e consequências em dispositivos distintos e organizam-se em uma hierarquia de títulos, capítulos e seções que também carrega significado.
+
+O \textit{framework} GraphRAG, desenvolvido pela Microsoft Research \cite{edge2024global}, propõe uma alternativa a essa limitação. Em vez de recuperar apenas fragmentos semanticamente similares, o GraphRAG utiliza um LLM para extrair do corpus um grafo de conhecimento -- entidades e relações entre elas --, agrupa as entidades em comunidades hierárquicas por meio de um algoritmo de detecção de comunidades e gera relatórios textuais que resumem cada comunidade. Essas estruturas permitem modalidades de consulta que não existem no RAG vetorial: buscas locais, que partem de entidades específicas e percorrem suas relações; buscas globais, que sintetizam informação distribuída por todo o corpus a partir dos relatórios de comunidade; e a busca DRIFT, que combina as duas de forma iterativa.
+
+Este trabalho aplica o GraphRAG ao Código de Defesa do Consumidor (CDC, Lei nº 8.078/1990) \cite{brasil1990cdc}. O escopo está delimitado à construção de uma prova de conceito (\textit{Proof of Concept} -- PoC) composta por: (i) um \textit{pipeline} de preparação do texto do CDC e de indexação com o GraphRAG, que gera o grafo de conhecimento da lei; e (ii) uma aplicação web para visualização interativa desse grafo e para realização de consultas em linguagem natural nas quatro modalidades oferecidas pelo GraphRAG (local, global, DRIFT e básica), exibindo passo a passo o que cada modalidade recupera e envia ao modelo e registrando cada consulta para posterior avaliação. A modalidade básica, que realiza busca vetorial pura sobre o mesmo corpus, com os mesmos modelos, é utilizada como \textit{baseline} de RAG tradicional. Ficam fora do escopo a extensão a outras leis, a incorporação de jurisprudência e a disponibilização do sistema em ambiente de produção.
+
+%%% Início de seção. %%%
+\section{Motivação e Justificativa}
+\label{sec-intro-motjus}
+
+A motivação deste trabalho parte do interesse em investigar, na prática, as limitações dos sistemas de RAG tradicionais diante de textos com alta densidade de relações internas, como a legislação. Um artigo de lei raramente pode ser interpretado de forma isolada: ele depende de definições estabelecidas em outros artigos (no CDC, por exemplo, os conceitos de consumidor e fornecedor dos arts. 2º e 3º permeiam todo o código), está sujeito a exceções previstas em outros dispositivos e produz consequências tratadas em capítulos distintos, como sanções administrativas e infrações penais. Uma recuperação baseada apenas em similaridade entre a pergunta e fragmentos de texto tende a trazer trechos relacionados ao vocabulário da pergunta, mas não necessariamente a cadeia de dispositivos necessária para uma resposta completa e juridicamente coerente. Além disso, perguntas amplas, como ``quais são os direitos básicos do consumidor?'', exigiriam sintetizar informação dispersa por grande parte do corpus, o que não se resolve recuperando um pequeno número de fragmentos.
+
+O CDC foi escolhido como domínio de aplicação por três razões. Primeiro, trata-se de uma legislação de grande relevância social e de ampla aplicação no cotidiano da população brasileira. Segundo, tem tamanho gerenciável para uma prova de conceito (130 artigos, cerca de 22 mil \textit{tokens}), o que permite iterar sobre a configuração e a indexação em tempo e custo compatíveis com um Trabalho de Conclusão de Curso, sem perder a complexidade relacional típica de textos legislativos. Terceiro, o código passou por alterações relevantes ao longo do tempo -- como a inclusão do tratamento do superendividamento pela Lei nº 14.181/2021 \cite{brasil2021lei14181} -- e contém dispositivos vetados e revogados, o que permite verificar se o sistema representa corretamente a situação normativa de cada dispositivo.
+
+Do ponto de vista técnico, o trabalho se justifica pela distância entre a proposta do GraphRAG, apresentada em artigo científico e em documentação, e o seu uso efetivo em um domínio específico. Embora sistemas de RAG aplicados ao domínio jurídico já tenham sido explorados \cite{cui2023chatlaw, magesh2024hallucination}, a maior parte utiliza recuperação vetorial tradicional, e há pouca documentação prática sobre como adaptar o GraphRAG a um corpus jurídico em português: como estruturar o texto de entrada, como definir os tipos de entidade, como ajustar os \textit{prompts}, quanto custa a indexação, como se comportam e quanto custam as diferentes modalidades de consulta. Como se verá nos capítulos seguintes, essa adaptação revelou também comportamentos não documentados e defeitos da própria biblioteca que afetam diretamente qualquer comparação entre as modalidades -- o que reforça a importância de uma investigação prática e transparente.
+
+%%% Início de seção. %%%
+\section{Objetivos}
+\label{sec-intro-obj}
+
+O objetivo geral deste trabalho é desenvolver uma prova de conceito de um sistema de \textit{Retrieval-Augmented Generation} baseado em grafo de conhecimento (GraphRAG) para indexação e consulta do Código de Defesa do Consumidor, disponibilizando uma aplicação web que permita a visualização do grafo de conhecimento construído e a realização de consultas nas diferentes modalidades de busca, e avaliar comparativamente essas modalidades em relação a uma abordagem de RAG vetorial tradicional.
+
+São objetivos específicos deste trabalho:
+
+\begin{itemize}
+    \item Revisar a literatura sobre modelos de linguagem, geração aumentada por recuperação, RAG baseado em grafos de conhecimento e aplicações no domínio jurídico;
+    \item Estudar o \textit{framework} GraphRAG em profundidade -- seu \textit{pipeline} de indexação, suas modalidades de consulta e suas opções de configuração --, documentando os impactos de cada opção em qualidade e custo;
+    \item Preparar o texto do CDC para indexação, preservando a hierarquia da lei e a situação normativa (vigente, vetado ou revogado) de cada dispositivo;
+    \item Definir uma taxonomia de tipos de entidade adequada ao CDC e ajustar os \textit{prompts} de extração do GraphRAG ao domínio;
+    \item Executar o \textit{pipeline} de indexação do GraphRAG sobre o CDC e analisar o grafo de conhecimento resultante;
+    \item Desenvolver uma aplicação web para visualização interativa do grafo e realização de consultas nas modalidades local, global, DRIFT e básica, exibindo as etapas intermediárias de cada consulta e registrando-as em banco de dados;
+    \item Avaliar comparativamente a qualidade, a completude e o custo das respostas obtidas pelas modalidades do GraphRAG em relação ao \textit{baseline} vetorial.
+\end{itemize}
+
+%%% Início de seção. %%%
+\section{Método de Desenvolvimento do Trabalho}
+\label{sec-intro-met}
+
+O trabalho caracteriza-se como uma pesquisa aplicada, de natureza tecnológica, cujo produto é uma prova de conceito funcional. O desenvolvimento foi conduzido de forma iterativa, nas seguintes etapas:
+
+\begin{enumerate}
+    \item \textbf{Revisão bibliográfica:} levantamento de referências sobre LLMs, RAG, RAG baseado em grafos (com foco no artigo e na documentação do GraphRAG) e aplicações de PLN no domínio jurídico.
+
+    \item \textbf{Estudo do \textit{framework}:} leitura da documentação e do código-fonte do GraphRAG (versão 3.1.0, fixada para garantir a reprodutibilidade), com o objetivo de compreender cada etapa da indexação e das consultas e o efeito de cada opção de configuração. O estudo do código foi necessário porque parte do comportamento relevante para este trabalho não está descrita na documentação.
+
+    \item \textbf{Primeira versão local:} montagem de um ambiente em contêineres Docker com modelos de código aberto executados localmente (Ollama \cite{ollama}), indexação de teste e primeira versão do visualizador do grafo. Essa etapa mostrou que, sem GPU, a indexação levava horas e a extração do grafo tinha qualidade insuficiente, o que motivou a migração para modelos em nuvem.
+
+    \item \textbf{Preparação do corpus:} desenvolvimento de um \textit{parser} que converte o texto oficial do CDC em um registro estruturado por artigo, com a hierarquia da lei e a situação normativa de cada dispositivo, e definição da segmentação (\textit{chunking}) do texto.
+
+    \item \textbf{Configuração e ajuste da indexação:} escolha dos modelos de linguagem por etapa do \textit{pipeline}, com base em custo e benefício; definição da taxonomia de tipos de entidade; geração e ajuste dos \textit{prompts} de extração; testes prévios dos modelos e da configuração.
+
+    \item \textbf{Indexação e análise do grafo:} execução do \textit{pipeline} completo, verificação da qualidade das entidades, relações e comunidades extraídas e registro do consumo de \textit{tokens}. O índice resultante foi publicado como versão (\textit{release}) do repositório, para que possa ser reutilizado sem nova indexação.
+
+    \item \textbf{Desenvolvimento da aplicação web:} implementação de um \textit{backend} que executa as consultas com a própria biblioteca GraphRAG, transmite cada etapa ao navegador e registra tudo em banco de dados, e de um \textit{frontend} para exploração do grafo, execução de consultas, consulta ao histórico e destaque, no grafo, do contexto utilizado em cada consulta.
+
+    \item \textbf{Avaliação:} definição de um conjunto de perguntas sobre o CDC e comparação das respostas das modalidades do GraphRAG com o \textit{baseline} vetorial, considerando qualidade, completude, consistência entre repetições e custo.
+\end{enumerate}
+
+Todas as implementações, decisões, problemas encontrados e medições foram registrados ao longo do desenvolvimento em um documento de registro de implementação mantido no repositório do projeto, que serviu de base para a redação desta monografia. O código-fonte, a configuração, os \textit{prompts} e a documentação estão disponíveis no repositório do projeto.\footnote{\url{https://github.com/aureaooliveira/graphrag-docker}}
+
+%%% Início de seção. %%%
+\section{Organização da Monografia}
+\label{sec-intro-organizacao}
+
+Além desta introdução, esta monografia está organizada da seguinte forma:
+
+\begin{itemize}
+	\item O Capítulo~\ref{sec-referencial} apresenta o referencial teórico -- modelos de linguagem, \textit{embeddings}, RAG, grafos de conhecimento, detecção de comunidades, RAG baseado em grafos e o domínio jurídico -- e as tecnologias utilizadas;
+
+	\item O Capítulo~\ref{sec-graphrag} descreve em detalhes o \textit{framework} GraphRAG: sua arquitetura, o \textit{pipeline} de indexação, os dados produzidos, as modalidades de consulta, os \textit{prompts} e as opções de configuração, com seus impactos em qualidade e custo;
+
+	\item O Capítulo~\ref{sec-indexacao} apresenta a aplicação do GraphRAG ao CDC: preparação do corpus, escolha dos modelos, taxonomia, ajuste dos \textit{prompts}, execução da indexação e análise do grafo resultante;
+
+	\item O Capítulo~\ref{sec-aplicacao} apresenta a aplicação web desenvolvida: funcionalidades, arquitetura, contêineres, \textit{backend}, banco de dados e \textit{frontend};
+
+	\item O Capítulo~\ref{sec-avaliacao} apresenta a avaliação comparativa entre as modalidades de busca;
+
+	\item O Capítulo~\ref{sec-conclusoes} apresenta as considerações finais, as limitações do trabalho e as perspectivas de trabalhos futuros;
+
+	\item O Apêndice~\ref{sec-apendice-config} reproduz a configuração completa do GraphRAG utilizada.
+\end{itemize}

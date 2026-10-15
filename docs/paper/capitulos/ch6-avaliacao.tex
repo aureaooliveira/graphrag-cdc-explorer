@@ -1,0 +1,52 @@
+% ==============================================================================
+% Monografia - Áurea Santos de Oliveira
+% Capítulo 6 - Avaliação
+% ==============================================================================
+\chapter{Avaliação Comparativa das Modalidades de Busca}
+\label{sec-avaliacao}
+
+\aluno{Capítulo a ser escrito após a execução da avaliação. A estrutura abaixo é uma proposta, com o que já foi decidido ou preparado.}
+
+Este capítulo apresentará a avaliação comparativa entre as modalidades de busca do GraphRAG (local, global e DRIFT) e o \textit{baseline} vetorial (busca básica).
+
+%%% Início de seção. %%%
+\section{Objetivo e Questões de Avaliação}
+\label{sec-avaliacao-objetivo}
+
+\pendente{[Definir as questões: as modalidades baseadas em grafo produzem respostas mais completas e corretas que o \textit{baseline}? Para que tipos de pergunta? A que custo? Quão consistentes são entre repetições?]}
+
+%%% Início de seção. %%%
+\section{Planejamento}
+\label{sec-avaliacao-planejamento}
+
+O planejamento já definido durante o desenvolvimento inclui:
+
+\begin{itemize}
+    \item \textbf{Índice congelado}: todas as modalidades consultam o mesmo índice, identificado pela impressão digital registrada pelo \textit{backend} e publicado como versão \code{v1.0.0} do repositório;
+    \item \textbf{Mesmos modelos e mesma temperatura} em todas as modalidades (Seção~\ref{sec-indexacao-temperatura});
+    \item \textbf{Repetições} de cada pergunta em cada modalidade, para medir a consistência, já que a temperatura 1, o embaralhamento da busca global e os sorteios da DRIFT fazem as respostas variarem;
+    \item \textbf{Execução pela mesma API} usada pela interface, com as consultas identificadas como de avaliação e todas as etapas registradas no banco;
+    \item \textbf{Registro de custo}: chamadas e \textit{tokens} por consulta e por etapa, com a ressalva de que os \textit{tokens} de raciocínio não são contabilizados pela biblioteca.
+\end{itemize}
+
+\pendente{[Conjunto de perguntas: quantidade, categorias (pontuais sobre um artigo, relacionais entre artigos, globais sobre o código, sobre dispositivos vetados), artigos esperados em cada resposta.]}
+
+\pendente{[Critérios de avaliação e escala: correção jurídica, completude, fundamentação nas fontes citadas, ausência de alucinação; avaliação manual e/ou por LLM.]}
+
+%%% Início de seção. %%%
+\section{Configuração das Buscas}
+\label{sec-avaliacao-config}
+
+\pendente{[Registrar as decisões: nível de comunidade da busca global (custo medido por nível: 0 = 7 chamadas e 71 mil \textit{tokens}; 1 = 30 e 336 mil; 2 = 68 e 775 mil; 3 = 82 e 944 mil); proporções de contexto das buscas locais da DRIFT (defeito 7 da Tabela~\ref{tab-defeitos}); número de perguntas por rodada e de rodadas da DRIFT. A análise das opções está em \code{docs/notes/configuracao-buscas.md}.]}
+
+%%% Início de seção. %%%
+\section{Resultados}
+\label{sec-avaliacao-resultados}
+
+\pendente{[Resultados por modalidade e por categoria de pergunta; custo; consistência; exemplos qualitativos com o destaque do contexto no grafo.]}
+
+%%% Início de seção. %%%
+\section{Discussão e Ameaças à Validade}
+\label{sec-avaliacao-discussao}
+
+\pendente{[Discussão; ameaças à validade: tamanho do conjunto de perguntas, subjetividade da avaliação, um único domínio e um único provedor de modelos, variação entre execuções, versão específica da biblioteca.]}

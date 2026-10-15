@@ -1,0 +1,39 @@
+% ==============================================================================
+% Monografia - Áurea Santos de Oliveira
+% Capítulo 7 - Considerações Finais
+% ==============================================================================
+\chapter{Conclusão}
+\label{sec-conclusoes}
+
+\aluno{Capítulo a ser concluído após a avaliação. Os pontos abaixo são um rascunho com o que já pode ser afirmado sobre o desenvolvimento.}
+
+%%% Início de seção. %%%
+\section{Considerações Finais}
+\label{sec-conclusoes-consideracoes}
+
+Este trabalho aplicou o \textit{framework} GraphRAG ao Código de Defesa do Consumidor, construindo uma prova de conceito que compreende a estruturação do texto da lei, a indexação em grafo de conhecimento e uma aplicação web para exploração do grafo e realização de consultas nas quatro modalidades da ferramenta, com registro detalhado de cada etapa.
+
+Algumas lições do desenvolvimento já podem ser registradas:
+
+\begin{itemize}
+    \item \textbf{A preparação do corpus importa.} Estruturar a lei em um registro por artigo, com a hierarquia e a situação normativa inseridas em cada trecho, fez com que cada unidade de texto correspondesse a um artigo completo e permitiu que o grafo registrasse corretamente localização, vetos e revogações.
+    \item \textbf{A qualidade do grafo depende da padronização.} Como o GraphRAG funde entidades pelo nome e pelo tipo, as definições dos tipos e as regras de nomeação inseridas no \textit{prompt} de extração foram decisivas para evitar nós duplicados.
+    \item \textbf{O custo é dominado pela extração e pelas modalidades com muitas chamadas.} A indexação custou várias vezes a estimativa feita a partir do tamanho do corpus, e as buscas global e DRIFT custam dezenas de vezes uma busca local, conforme a configuração.
+    \item \textbf{Usar a biblioteca exige ler o código.} Defeitos e comportamentos não documentados -- como a busca básica que devolve resposta vazia quando usada programaticamente, as buscas locais da DRIFT que não usam o grafo com a configuração padrão e o ajuste de \textit{prompts} que gera todos os exemplos a partir do mesmo trecho -- afetam diretamente a comparação entre as modalidades e só foram identificados pela inspeção do código e dos dados intermediários. A aplicação desenvolvida, ao expor cada etapa das consultas, foi o que tornou possível identificá-los.
+\end{itemize}
+
+\pendente{[Relacionar os resultados da avaliação aos objetivos da Seção~\ref{sec-intro-obj}; limitações; dificuldades; experiência adquirida.]}
+
+%%% Início de seção. %%%
+\section{Trabalhos Futuros}
+\label{sec-conclusoes-trabalhosfuturos}
+
+\pendente{[Rascunho de possibilidades:]}
+
+\begin{itemize}
+    \item ampliar o corpus com outras leis relacionadas (por exemplo, a Lei da Ação Civil Pública e regulamentações do CDC) e com jurisprudência, aproveitando o \textit{parser} genérico e as remissões entre normas já representadas no grafo;
+    \item explorar a extração de alegações (\textit{claims}) e a seleção dinâmica de comunidades;
+    \item comparar provedores e modelos de linguagem, inclusive modelos locais, mantendo o restante da configuração;
+    \item reportar à equipe do GraphRAG os defeitos identificados, com as correções propostas;
+    \item avaliar automaticamente as respostas com um LLM como juiz, comparando com a avaliação manual.
+\end{itemize}
