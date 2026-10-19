@@ -528,6 +528,8 @@ comunidades inteiras.
 | 13.10 | Na DRIFT, `local_search_text_unit_prop` (0,9) + `local_search_community_prop` (0,1) = 1 | `config/defaults.py`, `local_search/mixed_context.py` | Sobra 0% do contexto das buscas locais para entidades e relações; e os 10% de relatórios (1.200 tokens) são menores que qualquer relatório deste índice (menor ~1.300). Medido: 60 buscas locais com 0 entidades, 0 relações e 0 relatórios. A DRIFT só usa o grafo no primer | Decisão pendente (ver `docs/notes/configuracao-buscas.md`) |
 | 13.11 | Na DRIFT, as perguntas de cada rodada são escolhidas por sorteio (`rank_incomplete_actions()` sem pontuação → `random.shuffle`); a resposta hipotética (HyDE) usa um relatório sorteado como modelo | `drift_search/state.py`, `primer.py` | Fonte de variação entre execuções; as notas das perguntas não priorizam nada | Registrar no relatório |
 | 13.12 | Opções `primer_llm_max_tokens`, `data_max_tokens`, `reduce_max_tokens` e `concurrency` da DRIFT não são lidas pelo código | `drift_search/` | Alterá-las não tem efeito | Registrar |
+| 13.13 | `BasicSearchContext` converte os resultados da busca vetorial em um conjunto de ids e filtra a tabela de text units por ele | `basic_search/basic_context.py` | Os trechos vão para o prompt na ordem do corpus, não na de similaridade; o modelo não sabe quais são mais relevantes | Registrar |
+| 13.14 | Busca local: relatórios só entram inteiros e se couberem em `community_prop` (0,15 × 12 mil = 1.800 tokens) | `local_search/mixed_context.py`, `community_context.py` | Neste índice nenhum relatório cabe: a consulta real do art. 49 teve 0 relatórios no contexto | Decisão pendente (configuração) |
 
 Os itens 13.1 e 13.2 merecem destaque no relatório: sem o contorno de 13.1, quem usa a
 biblioteca diretamente teria um baseline que sempre "responde" vazio, o que distorceria
@@ -577,8 +579,9 @@ relatórios.
   34 e 52, não do 54-E). Resposta correta: o artigo foi vetado, aparece apenas como
   "Art. 54-E. (VETADO)", está associado à Lei nº 14.181/2021 e ao capítulo do
   superendividamento; o modelo ressalvou que os dados não informam a redação proposta
-  nem os motivos do veto. Observação útil para a comparação: a busca vetorial trouxe o
-  artigo certo, mas não nas primeiras posições.
+  nem os motivos do veto. **Correção (15/10/2026):** a ordem dos
+  trechos no contexto **não** é a de similaridade (ver 13.13); os 10 trechos foram os
+  arts. 34, 53, 54, 54-B a 54-G e 85 (o 54-A não veio; o 85 é outro artigo vetado).
 - **Destaque do contexto no grafo, dados reais** (11/10/2026): ver o fim da seção
   12.4 — subgrafo da consulta local do art. 49 (26 entidades, 9 relações) e destaque
   no grafo completo funcionando.
@@ -630,6 +633,26 @@ chamadas); a pergunta raiz mostra as respostas do primer concatenadas. Correçã
 - O arquivo do modelo `pg-nomealuno.tex` e o capítulo `ch6-dicaslatex.tex` não são mais
   usados pelo arquivo principal.
 
+### 17.1 Reorientação da monografia (15/10/2026)
+
+A pedido da autora, para a primeira entrega ao orientador: a avaliação comparativa saiu
+do escopo (passa a trabalho futuro) e a PoC passa a ser apresentada como **ferramenta de
+análise qualitativa** do que cada modalidade recupera e envia ao modelo.
+
+- Capítulo 6 novo: `ch6-analise.tex` ("A Prova de Conceito como Ferramenta de Análise
+  Qualitativa"), com roteiro de análise e as consultas reais de basic, local e DRIFT
+  analisadas em detalhe (dados extraídos do `storage/app.db`): contexto recuperado,
+  prompt, parte do grafo, fontes citadas e custo; global descrita com o contexto medido
+  por nível (sem consulta real); síntese comparativa.
+- Achados novos dessa análise: 13.13 (ordem de similaridade descartada na basic) e
+  13.14 (local sem relatórios). DRIFT: 28 perguntas do primer; árvore por profundidade
+  1/28/176/234/63 (respondidas 1/21/30/9/0); 1.189 trechos cobrindo 116 dos 130 artigos;
+  resposta citou arts. 6º, 18, 20, 24, 30 e 49.
+- Ajustados resumo, objetivos e método (cap. 1), referências à avaliação nos caps. 3 a
+  5, conclusão completa (cap. 7, com limitações e plano da avaliação como trabalho
+  futuro). Sem marcações `\aluno{}`/`\pendente{}` restantes; 91 páginas.
+- `ch6-avaliacao.tex` não é mais usado (pode ser apagado).
+
 ## 18. Histórico cronológico
 
 | Data | Etapa |
@@ -641,3 +664,4 @@ chamadas); a pergunta raiz mostra as respostas do primer concatenadas. Correçã
 | 11/10/2026 | Destaque do contexto no grafo (subgrafo por consulta e destaque no grafo completo) |
 | 12/10/2026 | Consulta DRIFT real; análise do custo e das proporções de contexto da DRIFT |
 | 13/10/2026 | Documentação das opções de busca; primeira versão da monografia em LaTeX (caps. 1 a 5) |
+| 15/10/2026 | Monografia reorientada: PoC como ferramenta de análise qualitativa (cap. 6); avaliação comparativa como trabalho futuro |

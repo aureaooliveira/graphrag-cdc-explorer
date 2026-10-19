@@ -13,7 +13,7 @@ Este capítulo descreve como o GraphRAG foi aplicado ao CDC: da obtenção e est
 
 A primeira versão da prova de conceito foi executada inteiramente na máquina da autora, com o objetivo de evitar custos de API. Os modelos eram servidos pelo Ollama \cite{ollama} em um contêiner: o \code{llama3.1:8b}, com janela de contexto ampliada para 8.192 \textit{tokens}, para geração, e o \code{nomic-embed-text} para \textit{embeddings}. Como a máquina não dispõe de GPU, a configuração limitava o GraphRAG a uma requisição simultânea, com tempo máximo de 30 minutos por chamada.
 
-Essa versão permitiu montar o ambiente em contêineres, entender o \textit{pipeline} e construir o primeiro visualizador do grafo, mas mostrou-se inviável para o trabalho por três motivos. Primeiro, o tempo: cada chamada ao modelo levava em torno de sete minutos, e a indexação completa, horas. Segundo, a qualidade: o modelo pequeno produzia extrações incompletas e inconsistentes, com tipos de entidade e nomes fora do padrão. Terceiro, a configuração: os \textit{prompts}, gerados pelo ajuste automático com o próprio modelo local, usavam tipos de entidade em inglês descobertos pelo modelo (\textit{law}, \textit{consumer}, \textit{business}, \textit{government}, \textit{product}, \textit{service}), e não a taxonomia definida na configuração, e a pasta de entrada continha, além do texto da lei, uma versão antiga e incompleta do CDC, de modo que dois documentos sobrepostos eram indexados. A configuração local foi preservada como alternativa no repositório, idêntica à de nuvem exceto pelos modelos, e o trabalho seguiu com modelos em nuvem.
+Essa versão permitiu montar o ambiente em contêineres, entender o \textit{pipeline} e construir o primeiro visualizador do grafo, mas mostrou-se inviável para o trabalho por dois motivos. Primeiro, o tempo: cada chamada ao modelo levava em torno de sete minutos, e a indexação completa, horas. Segundo, a qualidade: o modelo pequeno produzia extrações incompletas e inconsistentes, com tipos de entidade e nomes fora do padrão. A configuração local foi preservada como alternativa no repositório, idêntica à de nuvem exceto pelos modelos, e o trabalho seguiu com modelos em nuvem.
 
 %%% Início de seção. %%%
 \section{Preparação do Corpus}
@@ -45,24 +45,8 @@ Foi desenvolvido em Python um \textit{parser} que lê o texto bruto e reconhece,
 }
 \end{lstlisting}
 
-A primeira versão do \textit{parser}, herdada da fase inicial do projeto, apresentava problemas que foram corrigidos antes da indexação (Tabela~\ref{tab-parser-problemas}). O mais grave era a perda do sufixo de letra dos artigos acrescentados por leis posteriores, que fazia os artigos 54 e 54-A a 54-G receberem o mesmo identificador. Como o GraphRAG usa o identificador do documento, registros com identificadores repetidos se confundiriam. O \textit{parser} passou a falhar caso encontre identificadores duplicados.
 
-\begin{table}[htb]
-\centering
-\caption{Problemas corrigidos no \textit{parser} da legislação.}
-\label{tab-parser-problemas}
-\footnotesize
-\begin{tabular}{L{4.4cm} L{4.4cm} L{5.4cm}}
-\toprule
-\textbf{Problema} & \textbf{Causa} & \textbf{Correção} \\
-\midrule
-Identificadores repetidos (arts. 54 e 54-A a 54-G; 42-A; 104-A a 104-C) & A expressão regular do artigo descartava o sufixo de letra & O número do artigo inclui o sufixo e o identificador inclui a sigla da lei (\code{cdc\_art\_54-A}) \\
-Cabeçalhos como ``Art. 11º'' e ``Art. 54º-C'' & O cabeçalho era remontado sempre com ordinal & Regra da LC nº 95/1998: ordinal até o nono artigo, cardinal a partir do décimo \\
-Capítulo VI-A lido como ``VI'', com nome ``-A'' & A regra dos níveis da hierarquia não aceitava sufixo & Níveis com sufixo de letra; nome lido da linha seguinte \\
-Artigos inteiros marcados como vetados quando apenas um parágrafo o era (ex.: arts. 6º e 37) & Busca da expressão ``(Vetado)'' em todo o texto do artigo & Novos campos de situação, descritos a seguir \\
-\bottomrule
-\end{tabular}
-\end{table}
+
 
 \subsection{Dispositivos vetados e revogados}
 \label{sec-indexacao-corpus-vetados}
@@ -87,7 +71,7 @@ O arquivo resultante (\code{cdc.json}) é lido pelo GraphRAG no formato JSON, co
 
 O tamanho das unidades de texto foi mantido no padrão de 1.200 \textit{tokens}, com sobreposição de 100. Como o maior artigo do CDC tem 781 \textit{tokens} (a média é de 182), cada artigo cabe inteiro em uma unidade de texto: o índice tem 130 unidades, uma por artigo, e nenhuma mistura artigos diferentes ou corta um artigo ao meio.
 
-Para preservar a hierarquia da lei, foi utilizada a opção \code{prepend\_metadata}, que insere no início de cada unidade de texto a sigla da lei, os nomes do título, do capítulo e da seção e a situação do artigo (Listagem~\ref{lst-chunk}). Com isso, o modelo sabe, ao extrair entidades do art. 39, que ele está no capítulo das práticas comerciais e na seção das práticas abusivas, e sabe, ao processar o art. 54-E, que ele foi vetado. A mesma informação aparece para o modelo nas consultas, sempre que uma unidade de texto é incluída no contexto.
+Para preservar a hierarquia da lei, foi utilizada a opção \code{prepend\_metadata}, que insere no início de cada unidade de texto a sigla da lei, os nomes do título, do capítulo e da seção e a situação do artigo (Listagem~\ref{lst-chunk}). A mesma informação aparece para o modelo nas consultas, sempre que uma unidade de texto é incluída no contexto.
 
 \begin{lstlisting}[caption={Início de uma unidade de texto, com os metadados inseridos pelo \code{prepend\_metadata}.}, label=lst-chunk]
 lei_sigla: CDC.
@@ -127,23 +111,20 @@ Respostas das consultas (todas as modalidades) & \code{gpt-6.1-sol} & O mesmo mo
 
 A OpenAI foi escolhida como provedor principal por três razões: o GraphRAG foi desenvolvido e testado pela Microsoft com modelos dessa família, o que torna a avaliação mais fiel ao funcionamento previsto da ferramenta; um único provedor fornece tanto os modelos de geração quanto os de \textit{embeddings}, com uma única chave de API; e seus modelos de \textit{embeddings} estão entre os de menor custo. Como o GraphRAG acessa os modelos pelo LiteLLM, configurações equivalentes para outros provedores (Anthropic e Google) foram preparadas e mantidas no repositório, permitindo a troca sem alteração de código.
 
-Antes da indexação, foi criado um \textit{script} de teste que lê os modelos configurados e faz uma chamada mínima a cada um, de duas formas: como na indexação e com os parâmetros usados pela busca DRIFT. O teste custa frações de centavo e revelou, antes de qualquer gasto relevante, duas restrições dos modelos escolhidos: eles não aceitam o parâmetro \code{max\_tokens}, apenas \code{max\_completion\_tokens} (que o GraphRAG 3 já utiliza), e só aceitam temperatura igual a 1. Revelou também que a versão do LiteLLM instalada com o GraphRAG não reconhece esses modelos e, por isso, não filtra automaticamente os parâmetros não suportados, que precisam ser definidos de forma compatível na configuração.
 
 %%% Início de seção. %%%
 \section{Temperatura}
 \label{sec-indexacao-temperatura}
 
-A restrição de temperatura motivou uma análise de como o GraphRAG trata esse parâmetro. Na versão 3, a configuração de modelos passou a usar argumentos genéricos de chamada, sem temperatura padrão; assim, a indexação e as buscas local, global e básica usam o padrão do provedor, que é 1. A busca DRIFT, porém, manteve campos próprios de temperatura com valor padrão 0 -- herança da versão 2, em que todos os modelos usavam temperatura 0 por padrão. O resultado é uma inconsistência entre modalidades, e, com modelos que só aceitam temperatura 1, a DRIFT falharia com erro de parâmetro.
+A restrição de temperatura motivou uma análise de como o GraphRAG trata esse parâmetro. Na versão 3, a configuração de modelos passou a usar argumentos genéricos de chamada, sem temperatura padrão; assim, a indexação e as buscas local, global e básica usam o padrão do provedor, que é 1. A busca DRIFT, porém, manteve campos próprios de temperatura com valor padrão 0 -- herança da versão 2, em que todos os modelos usavam temperatura 0 por padrão. O resultado é uma inconsistência entre modalidades, e, com modelos que só aceitam temperatura 1, que é o caso dos modelos escolhidos, a DRIFT falharia com erro de parâmetro.
 
-A decisão foi fixar explicitamente a temperatura 1 nos argumentos de chamada dos dois modelos de geração e nos dois campos da DRIFT. Assim, todas as etapas e todas as modalidades usam a mesma temperatura, e ela deixa de ser uma variável de confusão na comparação com o \textit{baseline}. A consequência metodológica é que as respostas variam entre execuções da mesma pergunta. Por isso, a avaliação (Capítulo~\ref{sec-avaliacao}) foi planejada sobre um índice congelado, igual para todas as modalidades, e com repetições de cada pergunta, o que permite medir também a consistência das respostas. Como se verá, a temperatura não é a única fonte de variação: a busca global embaralha os relatórios antes de formar os lotes, e a DRIFT sorteia o modelo de formato da resposta hipotética e as perguntas aprofundadas.
+A decisão foi fixar explicitamente a temperatura 1 nos argumentos de chamada dos dois modelos de geração e nos dois campos da DRIFT. Assim, todas as etapas e todas as modalidades usam a mesma temperatura, e ela deixa de ser uma variável de confusão na comparação com o \textit{baseline}. A consequência metodológica é que as respostas podem ter maior variação entre execuções da mesma pergunta. Por isso, uma avaliação comparativa entre as modalidades, proposta como trabalho futuro (Capítulo~\ref{sec-conclusoes}), deve ser feita sobre um índice congelado, igual para todas as modalidades, e com repetições de cada pergunta, o que permite medir também a consistência das respostas. Como se verá, a temperatura não é a única fonte de variação: a busca global embaralha os relatórios antes de formar os lotes, e a DRIFT sorteia o modelo de formato da resposta hipotética e as perguntas aprofundadas.
 
 %%% Início de seção. %%%
 \section{Taxonomia de Entidades}
 \label{sec-indexacao-taxonomia}
 
-Os tipos de entidade definem a ontologia do grafo: o modelo só extrai entidades dos tipos listados. A taxonomia inicial do projeto tinha oito tipos (artigo, direito, obrigação, sanção, órgão fiscalizador, relação de consumo, fornecedor e consumidor) e apresentava problemas: faltavam conceitos centrais do CDC, como produto, serviço, contrato, práticas abusivas, crimes e ações coletivas; ``órgão fiscalizador'' não abrangia o Ministério Público, a Defensoria Pública, o Poder Judiciário e as associações; ``relação de consumo'' é um conceito, e não uma categoria de entidades; ``sanção'' misturava sanções administrativas e penais; e ``artigo'' não contemplava remissões a outras normas.
-
-A taxonomia foi redefinida a partir de uma análise dos seis títulos do CDC, resultando nos catorze tipos da Tabela~\ref{tab-taxonomia}, agrupados por papel. Um tipo próprio para princípios chegou a ser proposto, mas foi incorporado a \code{instituto\_juridico}, já que princípios e institutos são tratados de forma semelhante na lei e a separação aumentaria a indecisão do modelo.
+Os tipos de entidade definem a ontologia do grafo: o modelo só extrai entidades dos tipos listados. A taxonomia foi definida a partir de uma análise dos seis títulos do CDC, resultando nos catorze tipos da Tabela~\ref{tab-taxonomia}, agrupados por papel. Um tipo próprio para princípios chegou a ser proposto, mas foi incorporado a \code{instituto\_juridico}, já que princípios e institutos são tratados de forma semelhante na lei e a separação aumentaria a indecisão do modelo.
 
 \begin{table}[htb]
 \centering
@@ -180,7 +161,6 @@ Algumas decisões de projeto acompanharam a taxonomia:
 
 \begin{itemize}
     \item \textbf{Número de tipos.} Tipos demais fragmentam o grafo e deixam o modelo indeciso entre categorias próximas; catorze tipos cobrem os seis títulos do CDC com pouca sobreposição.
-    \item \textbf{Prazos não são entidades.} Um prazo como ``30 dias'' aparece no CDC com sentidos diferentes (decadência do direito de reclamar por vícios aparentes, prazo para o fornecedor sanar o vício). Como o GraphRAG funde entidades de mesmo nome e tipo (Seção~\ref{sec-graphrag-indexacao-extracao}), uma entidade ``30 DIAS'' misturaria esses sentidos. Os prazos são registrados na descrição do direito, da obrigação ou do instituto a que se referem.
     \item \textbf{Definições dos tipos no \textit{prompt}.} O GraphRAG insere no \textit{prompt} apenas os nomes dos tipos. Como nomes como \code{instituto\_juridico} são ambíguos para o modelo, uma definição de cada tipo foi acrescentada ao \textit{prompt} de extração (Seção~\ref{sec-indexacao-prompts}).
     \item \textbf{Regras de nomeação.} Pelo mesmo motivo -- a fusão por nome --, foram definidas regras para padronizar os nomes das entidades: maiúsculas, singular, sem artigo inicial; termos do próprio CDC, sem sinônimos (FORNECEDOR, e não EMPRESA); artigos do CDC no padrão ``ART. 54-A DO CDC'', com o artigo como unidade (parágrafos e incisos vão na descrição); outras normas pelo nome usual ou número e ano (``LEI Nº 7.347/1985''); e artigos vetados ou revogados como entidades, com o veto registrado na descrição.
 \end{itemize}
@@ -210,9 +190,7 @@ Foi desenvolvido um \textit{script} que executa as mesmas etapas e utiliza as me
     \item usa a taxonomia da configuração, e falha se a lista de definições do \textit{script} divergir dela;
     \item insere no \textit{prompt} de extração, antes da seção de exemplos, as definições de cada tipo e as regras de nomeação (Listagem~\ref{lst-prompt-definicoes}), e fornece as mesmas orientações como mensagem de sistema na geração dos exemplos, para que estes já sigam as regras;
     \item fixa o domínio (``legislação consumerista brasileira (Código de Defesa do Consumidor, Lei nº 8.078/1990)'') e o idioma (``português do Brasil''), em vez de inferi-los;
-    \item gera cada exemplo em uma conversa independente, contornando o defeito descrito acima;
     \item monta os trechos de exemplo exatamente como na indexação, com o mesmo segmentador e os mesmos metadados;
-    \item normaliza os exemplos gerados (nomes em maiúsculas, correção de tipos com erro de digitação, como \code{instrument\_processual}) e alerta se um exemplo não cita o próprio artigo;
     \item registra em um arquivo de metadados o modelo, a versão do GraphRAG, a \textit{persona}, o papel do redator dos relatórios, o critério de nota, os artigos usados e os alertas, para fins de reprodutibilidade.
 \end{itemize}
 
@@ -221,8 +199,6 @@ Foi desenvolvido um \textit{script} que executa as mesmas etapas e utiliza as me
 - consumidor: consumidor e equiparados (coletividade de pessoas, vítimas do evento, pessoas
   expostas às práticas comerciais), incluindo o consumidor superendividado.
 - fornecedor: quem fornece produtos ou serviços: fabricante, produtor, construtor, ...
-- instituto_juridico: princípios e conceitos jurídicos: princípios da Política Nacional das
-  Relações de Consumo (vulnerabilidade, boa-fé, harmonização), relação de consumo, ...
   ...
 -Regras de nomeação das entidades-
 - Escreva os nomes das entidades em MAIÚSCULAS, no singular, em português e sem artigo
@@ -230,8 +206,6 @@ Foi desenvolvido um \textit{script} que executa as mesmas etapas e utiliza as me
 - Use os termos do próprio CDC, sem sinônimos (FORNECEDOR, e não EMPRESA; PRODUTO, e não
   MERCADORIA).
 - Nomeie artigos do CDC como ART. 6º DO CDC, ART. 54-A DO CDC ou ART. 10 DO CDC ...
-- Prazos não são entidades: registre-os na descrição do direito, da obrigação ou do
-  instituto a que se referem ...
 - Se o artigo estiver vetado ou revogado (situacao no cabeçalho do trecho), crie a entidade
   do dispositivo e registre o veto ou a revogação na descrição.
 -Examples-
@@ -241,9 +215,8 @@ Foi desenvolvido um \textit{script} que executa as mesmas etapas e utiliza as me
 \subsection{Escolha dos exemplos}
 \label{sec-indexacao-prompts-exemplos}
 
-A escolha dos artigos usados como exemplos envolve um equilíbrio entre qualidade e custo. Na primeira tentativa, com os arts. 6º, 12, 51, 56 e 82, os exemplos eram corretos, mas os arts. 6º e 51 -- os mais longos e densos do código -- geraram extrações com 50 entidades e 113 relações e com 37 entidades e 72 relações, respectivamente. O \textit{prompt} de extração resultante tinha cerca de 27 mil \textit{tokens}, que seriam enviados em cada uma das centenas de chamadas de extração.
 
-Na versão final, foram escolhidos artigos curtos que, em conjunto, cobrem a maior parte da taxonomia, em ordem de prioridade: 49 (direito de arrependimento), 12 (responsabilidade pelo fato do produto), 42 (cobrança de dívidas), 82 (legitimados para ações coletivas), 66 (crime de afirmação falsa ou enganosa) e 56 (sanções administrativas). Os exemplos entram no \textit{prompt} nessa ordem enquanto o total couber em 12 mil \textit{tokens}, com mínimo de três. Resultaram os exemplos dos arts. 49, 12 e 42 e um \textit{prompt} de extração de 11.709 \textit{tokens}. Os tipos sem exemplo (órgãos, instrumentos processuais, sanções e crimes) são orientados apenas pelas definições. Para a geração da \textit{persona} e do papel do redator dos relatórios de comunidade, foram usados como contexto, além dos exemplos, artigos representativos de todo o código (arts. 2º, 4º, 6º, 18, 26, 39, 51, 54-A, 54-E e 106).
+Na versão final, foram escolhidos artigos curtos que, em conjunto, cobrem a maior parte da taxonomia: 49 (direito de arrependimento), 12 (responsabilidade pelo fato do produto), 42 (cobrança de dívidas), 82 (legitimados para ações coletivas), 66 (crime de afirmação falsa ou enganosa) e 56 (sanções administrativas). Os exemplos entram no \textit{prompt} nessa ordem enquanto o total couber em 12 mil \textit{tokens}. Resultaram os exemplos dos arts. 49, 12 e 42 e um \textit{prompt} de extração de 11.709 \textit{tokens}. Os tipos sem exemplo (órgãos, instrumentos processuais, sanções e crimes) são orientados apenas pelas definições.
 
 Os \textit{prompts} de indexação gerados combinam instruções em inglês (as do GraphRAG) com conteúdo em português (definições, regras, exemplos e o papel do redator), e determinam que as descrições sejam escritas em português do Brasil. O \textit{prompt} de relatórios de comunidade, por exemplo, define o redator como ``um analista jurídico especializado em legislação consumerista brasileira'' e a nota de importância como a relevância do conteúdo para a compreensão da proteção jurídica do consumidor. Os \textit{prompts} de consulta foram mantidos os padrões da biblioteca.
 
@@ -251,30 +224,13 @@ Os \textit{prompts} de indexação gerados combinam instruções em inglês (as 
 \section{Configuração Final}
 \label{sec-indexacao-config}
 
-A configuração completa está no Apêndice~\ref{sec-apendice-config}. Além das escolhas já descritas, a preparação da configuração revelou erros que teriam impedido a indexação ou alterado silenciosamente o resultado (Tabela~\ref{tab-erros-config}). Dois deles decorrem da substituição de variáveis de ambiente em todo o arquivo (Seção~\ref{sec-graphrag-defeitos}); por isso, um aviso foi colocado no topo do \code{settings.yaml}.
-
-\begin{table}[htb]
-\centering
-\caption{Erros de configuração encontrados e corrigidos antes da indexação.}
-\label{tab-erros-config}
-\footnotesize
-\begin{tabular}{L{4.6cm} L{5.2cm} L{4.4cm}}
-\toprule
-\textbf{Erro} & \textbf{Efeito} & \textbf{Correção} \\
-\midrule
-Caminho do banco vetorial com barra invertida (\code{output\textbackslash lancedb}) & No contêiner Linux, criava uma pasta com a barra no nome & Barra normal \\
-Nome inexistente para o \textit{prompt} de redução da DRIFT & A DRIFT usaria silenciosamente o \textit{prompt} padrão & Nome corrigido \\
-Cifrão no padrão de nomes de arquivo de entrada & Erro de interpretação da configuração & Linha removida (o padrão da biblioteca é o mesmo) \\
-Blocos comentados de outros provedores com referências a chaves inexistentes & Falha no carregamento, mesmo comentados & Blocos movidos para outro arquivo \\
-\bottomrule
-\end{tabular}
-\end{table}
+A configuração completa está no Apêndice~\ref{sec-apendice-config}. 
 
 %%% Início de seção. %%%
 \section{Execução da Indexação}
 \label{sec-indexacao-execucao}
 
-A indexação foi executada em 8 de outubro de 2026, no contêiner do GraphRAG, com o comando \code{graphrag index --root /data}. A execução durou cerca de 26 minutos, sem erros e sem novas tentativas de chamada, e percorreu os \textit{workflows} do método padrão: leitura das 130 entradas e criação das 130 unidades de texto; extração do grafo com uma rodada adicional (\textit{gleaning}); resumo de 8.270 descrições parciais de entidades e relações; detecção de comunidades; geração dos relatórios de comunidade; e geração de \textit{embeddings} para 400 textos. O paralelismo foi limitado a oito requisições simultâneas por modelo.
+A indexação foi executada no contêiner do GraphRAG via CLI, com o comando \code{graphrag index --root /data}. A execução durou cerca de 26 minutos, sem erros e sem novas tentativas de chamada, e percorreu os \textit{workflows} do método padrão: leitura das 130 entradas e criação das 130 unidades de texto; extração do grafo com uma rodada adicional (\textit{gleaning}); resumo de 8.270 descrições parciais de entidades e relações; detecção de comunidades; geração dos relatórios de comunidade; e geração de \textit{embeddings} para 400 textos. O paralelismo foi limitado a oito requisições simultâneas por modelo.
 
 %%% Início de seção. %%%
 \section{O Grafo Resultante}
@@ -369,7 +325,7 @@ A Tabela~\ref{tab-comunidades-n0} lista as comunidades do nível 0, as mais ampl
 \subsection{Verificações de qualidade}
 \label{sec-indexacao-grafo-qualidade}
 
-Foram feitas verificações automáticas e por amostragem sobre o grafo: nenhum nome de entidade fora do padrão de maiúsculas; artigos de outras normas também padronizados (por exemplo, ``ART. 16 DA LEI Nº 7.347/1985'' e ``ART. 44 DO CÓDIGO PENAL''); prazos registrados nas descrições, e não como entidades isoladas; e a entidade do art. 54-E registrando que o dispositivo foi vetado e que seria incluído pela Lei nº 14.181/2021. Esses resultados indicam que as definições dos tipos e as regras de nomeação inseridas no \textit{prompt} foram efetivas. \aluno{Incluir aqui, se desejado, uma análise qualitativa manual de uma amostra de entidades e relações (por exemplo, 30 relações sorteadas, classificadas como corretas, imprecisas ou incorretas).}
+Foram feitas verificações automáticas e por amostragem sobre o grafo: nenhum nome de entidade fora do padrão de maiúsculas; artigos de outras normas também padronizados (por exemplo, ``ART. 16 DA LEI Nº 7.347/1985'' e ``ART. 44 DO CÓDIGO PENAL''); prazos registrados nas descrições, e não como entidades isoladas; e a entidade do art. 54-E registrando que o dispositivo foi vetado e que seria incluído pela Lei nº 14.181/2021. Esses resultados indicam que as definições dos tipos e as regras de nomeação inseridas no \textit{prompt} foram efetivas.
 
 A Figura~\ref{fig-grafo-completo} mostra o grafo completo na aplicação desenvolvida, colorido por tipo de entidade.
 
@@ -402,12 +358,11 @@ A Tabela~\ref{tab-tokens-indexacao} apresenta o consumo de \textit{tokens} regis
 \end{tabular}
 \end{table}
 
-O custo estimado pelos preços de tabela dos modelos ficou entre 16 e 24 dólares, enquanto a estimativa feita antes da indexação, a partir do tamanho do corpus, era de 3 a 6 dólares. A diferença veio principalmente dos \textit{tokens} de saída, os mais caros: a extração foi muito mais detalhada do que o previsto, com mais de 6.800 relações para um corpus de 130 artigos, e cada relação é acompanhada de uma descrição. Além disso, o \textit{prompt} de extração, com cerca de 11,7 mil \textit{tokens}, é enviado em todas as chamadas de extração, e os \textit{tokens} de raciocínio dos modelos utilizados são cobrados mas não aparecem nas contagens. A lição é que o custo do GraphRAG é dominado pela extração do grafo e pelos \textit{tokens} gerados, e que estimativas baseadas apenas no tamanho do corpus o subestimam.
+o \textit{prompt} de extração, com cerca de 11,7 mil \textit{tokens}, é enviado em todas as chamadas de extração, e os \textit{tokens} de raciocínio dos modelos utilizados são cobrados mas não aparecem nas contagens. A lição é que o custo do GraphRAG é dominado pela extração do grafo e pelos \textit{tokens} gerados, e que estimativas baseadas apenas no tamanho do corpus o subestimam.
 
 %%% Início de seção. %%%
 \section{Publicação e Reprodutibilidade}
 \label{sec-indexacao-release}
 
-Para que o índice possa ser reutilizado sem nova indexação, e para que a avaliação seja feita sobre um índice identificado e imutável, o resultado foi publicado como versão (\textit{release}) do repositório no GitHub, com a marcação \code{v0.1.0}, seguindo o versionamento semântico. O pacote contém as pastas de saída, cache e registros da indexação e cópias da configuração, dos \textit{prompts} e do corpus, nos caminhos originais, acompanhado de uma soma de verificação SHA-256, de um manifesto (versão do código, modelos, estatísticas do índice, consumo de \textit{tokens} e \textit{hashes} da configuração e dos \textit{prompts}) e de notas da versão com instruções de restauração. Nenhuma chave de API é incluída, o que foi verificado por busca de padrões de chave no pacote. A marcação \code{v1.0.0} foi reservada para o índice que será usado na avaliação final.
+Para que o índice possa ser reutilizado sem nova indexação, e para que as análises sejam feitas sobre um índice identificado e imutável, o resultado foi publicado como versão (\textit{release}) do repositório no GitHub, com a marcação \code{v0.1.0}, seguindo o versionamento semântico. O pacote contém as pastas de saída, cache e registros da indexação e cópias da configuração, dos \textit{prompts} e do corpus, nos caminhos originais, acompanhado de uma soma de verificação SHA-256, de um manifesto (versão do código, modelos, estatísticas do índice, consumo de \textit{tokens} e \textit{hashes} da configuração e dos \textit{prompts}) e de notas da versão com instruções de restauração.
 
-Como o cache das respostas dos modelos faz parte do pacote, quem restaurar a versão pode reexecutar a indexação com a mesma configuração praticamente sem custo, e verificar que o resultado é o mesmo. A versão do GraphRAG foi fixada em 3.1.0 em todos os ambientes, já que tanto o formato dos dados quanto o comportamento das consultas podem mudar entre versões.

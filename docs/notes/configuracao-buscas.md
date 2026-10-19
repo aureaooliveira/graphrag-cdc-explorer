@@ -58,6 +58,9 @@ prompt com os trechos → resposta. **1 chamada.**
 
 Custo medido: 1 chamada, ~4,5 a 5 mil tokens de entrada.
 
+**Atenção:** os trechos entram no prompt na ordem do corpus, e não na de similaridade
+(o código filtra a tabela de text units pelo conjunto de ids recuperados; item 13.13 do log).
+
 ---
 
 ## 3. Busca local
@@ -90,6 +93,11 @@ relações. Se a soma for 1, **nenhuma entidade ou relação entra no contexto**
 acontece hoje na DRIFT, seção 5).
 
 Custo medido: 1 chamada, ~10 mil tokens de entrada (art. 49: 10.154).
+
+**Medido:** na consulta real do art. 49, **nenhum relatório** entrou no contexto (20
+entidades, 9 relações, 17 trechos). Relatórios só entram inteiros e todos deste índice
+são maiores que 1.800 tokens (item 13.14 do log). Para incluí-los: `community_prop`
+≥ 0,25 ou relatórios menores (`community_reports.max_length`, exige reindexar).
 
 ---
 

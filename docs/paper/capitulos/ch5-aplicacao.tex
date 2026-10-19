@@ -5,13 +5,13 @@
 \chapter{Aplicação Web para Exploração e Consulta do Grafo}
 \label{sec-aplicacao}
 
-Este capítulo apresenta a aplicação web desenvolvida como parte da prova de conceito. A Seção~\ref{sec-aplicacao-requisitos} descreve seus objetivos e funcionalidades. A Seção~\ref{sec-aplicacao-arquitetura} apresenta a arquitetura e a Seção~\ref{sec-aplicacao-conteineres}, os contêineres. As seções~\ref{sec-aplicacao-backend} a~\ref{sec-aplicacao-frontend} detalham o \textit{backend}, o banco de dados e o \textit{frontend}. A Seção~\ref{sec-aplicacao-problemas} reúne os problemas de ambiente enfrentados, e a Seção~\ref{sec-aplicacao-validacao}, a validação funcional da aplicação.
+Este capítulo apresenta a aplicação web desenvolvida como parte da prova de conceito. A Seção~\ref{sec-aplicacao-requisitos} descreve seus objetivos e funcionalidades. A Seção~\ref{sec-aplicacao-arquitetura} apresenta a arquitetura e a Seção~\ref{sec-aplicacao-conteineres}, os contêineres. As seções~\ref{sec-aplicacao-backend} a~\ref{sec-aplicacao-frontend} detalham o \textit{backend}, o banco de dados e o \textit{frontend}. Por fim, a Seção~\ref{sec-aplicacao-validacao} descreve a validação funcional da aplicação.
 
 %%% Início de seção. %%%
 \section{Objetivos e Funcionalidades}
 \label{sec-aplicacao-requisitos}
 
-A primeira versão da aplicação apenas lia os arquivos do índice e exibia o grafo; as consultas eram feitas pela linha de comando, dentro do contêiner do GraphRAG, e mostravam somente a resposta final. Para os objetivos deste trabalho, isso era insuficiente. Comparar as modalidades de busca exige ver \textbf{o que cada uma recupera e envia ao modelo}, e não apenas a resposta, e exige registrar as consultas de forma sistemática para a avaliação. A aplicação foi então reestruturada com os seguintes requisitos funcionais:
+A primeira versão da aplicação apenas lia os arquivos do índice e exibia o grafo; as consultas eram feitas pela linha de comando, dentro do contêiner do GraphRAG, e mostravam somente a resposta final. Para os objetivos deste trabalho, isso era insuficiente. Comparar as modalidades de busca exige ver \textbf{o que cada uma recupera e envia ao modelo}, e não apenas a resposta, e exige registrar as consultas de forma sistemática, para que possam ser revistas e comparadas. A aplicação foi então reestruturada com os seguintes requisitos funcionais:
 
 \begin{description}
     \item[RF01 -- Visualizar o grafo.] Exibir o grafo de conhecimento completo, de forma interativa, com coloração por tipo de entidade ou por comunidade, filtros por tipo, busca por nome e painel de detalhes de cada entidade, com sua descrição, suas relações e os relatórios das comunidades a que pertence.
@@ -19,7 +19,7 @@ A primeira versão da aplicação apenas lia os arquivos do índice e exibia o g
     \item[RF03 -- Exibir as etapas da consulta.] Mostrar, à medida que acontecem, as etapas intermediárias de cada consulta: o contexto recuperado (entidades, relações, relatórios e trechos), o \textit{prompt} enviado ao modelo, as respostas parciais (nas modalidades global e DRIFT), a resposta final e as métricas de chamadas, \textit{tokens} e tempo.
     \item[RF04 -- Relacionar a consulta ao grafo.] Destacar no grafo as entidades e relações correspondentes ao contexto de cada consulta.
     \item[RF05 -- Registrar o histórico.] Armazenar cada consulta, com todas as etapas, em banco de dados, e permitir listá-las, filtrá-las, revê-las e excluí-las.
-    \item[RF06 -- Apoiar a avaliação.] Permitir que consultas sejam disparadas por \textit{scripts} de avaliação pela mesma interface de programação (API) usada pela interface, identificando sua origem, e armazenar as notas atribuídas às respostas.
+    \item[RF06 -- Preparar a avaliação.] Permitir que consultas sejam disparadas por \textit{scripts} pela mesma interface de programação (API) usada pela interface, identificando sua origem, e prever o armazenamento de perguntas de teste e de notas atribuídas às respostas, para uma avaliação sistemática futura.
 \end{description}
 
 E os seguintes requisitos não funcionais:
@@ -48,7 +48,7 @@ A Figura~\ref{fig-arquitetura} apresenta a arquitetura. Há um \textbf{índice �
 ]
 \node[ext] (nav) at (0,0) {Navegador};
 \node[svc] (fe) at (3.4,0) {\textbf{frontend}\\React + Vite\\porta 5173};
-\node[svc] (be) at (7.6,0) {\textbf{backend}\\FastAPI\\GraphRAG 3.1.0\\porta 8000};
+\node[svc] (be) at (7.6,0) {\textbf{backend}\\FastAPI\\porta 8000};
 \node[db]  (st) at (11.8,0) {\textbf{storage/}\\app.db (SQLite)};
 \node[svc] (gr) at (3.4,-3.4) {\textbf{graphrag}\\CLI: index,\\prompt-tune, query};
 \node[db]  (data) at (7.6,-3.4) {\textbf{data/}\\settings.yaml, prompts/,\\.env, output/\\(parquet + LanceDB)};
@@ -73,7 +73,7 @@ A aplicação suporta três fluxos:
 \begin{enumerate}
     \item \textbf{Indexação} (rara): executada pela CLI no contêiner \code{graphrag}, gera a pasta \code{data/output}. Após uma nova indexação, o \textit{backend} recarrega o índice por uma rota da API ou ao ser reiniciado.
     \item \textbf{Consulta} (interativa): o navegador envia a pergunta ao \textit{backend}, que monta o motor de busca do GraphRAG, executa a consulta e envia cada etapa ao navegador por SSE, gravando-a ao mesmo tempo no banco.
-    \item \textbf{Avaliação} (em lote): um \textit{script} chama a mesma API para um conjunto de perguntas, modalidades e repetições, identificando as consultas como de avaliação; os resultados são exportados do banco para análise.
+    \item \textbf{Avaliação} (em lote, prevista para trabalhos futuros): um \textit{script} chama a mesma API para um conjunto de perguntas, modalidades e repetições, identificando as consultas como de avaliação; os resultados são exportados do banco para análise.
 \end{enumerate}
 
 %%% Início de seção. %%%
@@ -92,15 +92,14 @@ O sistema é composto pelos serviços da Tabela~\ref{tab-servicos}, definidos em
 \textbf{Serviço} & \textbf{Imagem} & \textbf{Volumes} & \textbf{Função} \\
 \midrule
 \code{graphrag} & Python 3.11 com \code{graphrag==3.1.0} & \code{data/}, \code{scripts/}, \code{corpus/} & Indexação, ajuste de \textit{prompts}, consultas pela CLI e \textit{scripts} auxiliares. Não é um servidor: é usado sob demanda. \\
-\code{backend} & Python 3.11 com FastAPI e \code{graphrag==3.1.0} & \code{data/}, \code{storage/} & API: grafo, consultas com etapas, histórico e versão do índice (porta 8000). \\
+\code{backend} & Python 3.11 com FastAPI  & \code{data/}, \code{storage/} & API: grafo, consultas com etapas, histórico e versão do índice (porta 8000). \\
 \code{frontend} & Node.js 20 com Vite & código do \textit{frontend} & Interface web (porta 5173); repassa \code{/api} ao \textit{backend}. \\
 \code{ollama} & Ollama & modelos locais & Servidor de modelos locais. Só é iniciado com o perfil \code{local}. \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-A chave de API fica no arquivo \code{data/.env}, lido automaticamente pelo GraphRAG e excluído do controle de versão; um modelo do arquivo, sem a chave, acompanha o repositório. Um \textit{script} de configuração para Windows automatiza a preparação do ambiente: cria o \code{.env} a partir do modelo, constrói as imagens, inicia os serviços e, opcionalmente, executa a indexação ou usa a configuração local.
-
+A chave de API fica no arquivo \code{data/.env}, lido automaticamente pelo GraphRAG e excluído do controle de versão; um modelo do arquivo, sem a chave, acompanha o repositório.
 %%% Início de seção. %%%
 \section{\textit{Backend}}
 \label{sec-aplicacao-backend}
@@ -133,7 +132,7 @@ O \textit{backend} é uma aplicação FastAPI organizada em configuração, mode
 \subsection{Carregamento do índice e montagem dos motores}
 \label{sec-aplicacao-backend-carga}
 
-Para garantir a equivalência com a CLI, o \textit{backend} reproduz o que a própria biblioteca faz ao executar \code{graphrag query}: carrega a configuração com a função da biblioteca, a partir da mesma pasta raiz; lê as tabelas do índice com o mesmo leitor de dados; e monta os motores de busca com as mesmas funções de fábrica (\textit{factory}) usadas pela API da biblioteca, com os mesmos parâmetros. Os \textit{prompts} de consulta são lidos a partir da pasta raiz, e não do diretório corrente. Se um arquivo de \textit{prompt} configurado não existir, o \textit{backend} falha com uma mensagem clara, em vez de usar silenciosamente o \textit{prompt} padrão, como faria a biblioteca (defeito 4 da Tabela~\ref{tab-defeitos}).
+Para garantir a equivalência com a CLI, o \textit{backend} reproduz o que a própria biblioteca faz ao executar \code{graphrag query}: carrega a configuração com a função da biblioteca, a partir da mesma pasta raiz; lê as tabelas do índice com o mesmo leitor de dados; e monta os motores de busca com as mesmas funções de fábrica (\textit{factory}) usadas pela API da biblioteca, com os mesmos parâmetros. Os \textit{prompts} de consulta são lidos a partir da pasta raiz, e não do diretório corrente. Se um arquivo de \textit{prompt} configurado não existir, o \textit{backend} falha com uma mensagem clara, em vez de usar silenciosamente o \textit{prompt} padrão, como faria a biblioteca.
 
 Os motores de busca do GraphRAG oferecem dois métodos: \code{stream\_search}, usado pela CLI, que devolve apenas o texto da resposta à medida que é gerado; e \code{search}, que devolve o resultado completo, incluindo o contexto, o número de chamadas e os \textit{tokens} por etapa. O \textit{backend} usa \code{search}, porque precisa dessas informações para exibi-las e registrá-las. A resposta continua sendo exibida à medida que é gerada, porque \code{search} também notifica cada fragmento de texto gerado.
 
@@ -168,7 +167,7 @@ Os \textit{callbacks} da biblioteca, porém, não bastam para exibir o contexto 
 \subsection{Execução em segundo plano e transmissão}
 \label{sec-aplicacao-backend-sse}
 
-Uma consulta começa com uma requisição \code{POST /api/query}. O \textit{backend} cria o registro da consulta no banco, com estado ``em andamento'', e inicia a execução em uma tarefa assíncrona separada da conexão. Cada evento emitido pela tarefa é gravado no banco (exceto os fragmentos de resposta, para não sobrecarregá-lo) e colocado em uma fila, da qual a rota lê e envia os eventos ao navegador no formato SSE. Ao final, o registro recebe a resposta, as métricas e o estado final. Como a gravação acontece na tarefa, e não na conexão, uma consulta iniciada continua e fica registrada mesmo que o navegador seja fechado -- o que é importante para consultas que levam minutos e custam dinheiro. Para os \textit{scripts} de avaliação, a mesma rota aceita um parâmetro que desativa o \textit{streaming} e devolve o registro completo ao final.
+Uma consulta começa com uma requisição \code{POST /api/query}. O \textit{backend} cria o registro da consulta no banco, com estado ``em andamento'', e inicia a execução em uma tarefa assíncrona separada da conexão. Cada evento emitido pela tarefa é gravado no banco (exceto os fragmentos de resposta, para não sobrecarregá-lo) e colocado em uma fila, da qual a rota lê e envia os eventos ao navegador no formato SSE. Ao final, o registro recebe a resposta, as métricas e o estado final. Como a gravação acontece na tarefa, e não na conexão, uma consulta iniciada continua e fica registrada mesmo que o navegador seja fechado -- o que é importante para consultas que levam minutos e custam dinheiro. Para uso por \textit{scripts}, a mesma rota aceita um parâmetro que desativa o \textit{streaming} e devolve o registro completo ao final.
 
 \subsection{Correção da busca básica}
 \label{sec-aplicacao-backend-basic}
@@ -199,7 +198,7 @@ class _AwaitedStreamModel:
 \subsection{Versionamento do índice}
 \label{sec-aplicacao-backend-versao}
 
-Para atender ao requisito de rastreabilidade (RNF02), o \textit{backend} calcula, ao carregar o índice, uma impressão digital: um \textit{hash} SHA-256 que combina os \textit{hashes} das tabelas principais do índice, do \code{settings.yaml} e de todos os \textit{prompts}. Se qualquer um desses arquivos mudar -- uma reindexação, uma alteração de configuração das buscas ou de um \textit{prompt} --, a impressão digital muda e uma nova versão do índice é registrada no banco, com a data da indexação, os modelos e a versão da biblioteca. Cada consulta guarda a versão que a respondeu. Assim, resultados obtidos com configurações diferentes nunca se misturam na avaliação.
+Para atender ao requisito de rastreabilidade (RNF02), o \textit{backend} calcula, ao carregar o índice, uma impressão digital: um \textit{hash} SHA-256 que combina os \textit{hashes} das tabelas principais do índice, do \code{settings.yaml} e de todos os \textit{prompts}. Se qualquer um desses arquivos mudar -- uma reindexação, uma alteração de configuração das buscas ou de um \textit{prompt} --, a impressão digital muda e uma nova versão do índice é registrada no banco, com a data da indexação, os modelos e a versão da biblioteca. Cada consulta guarda a versão que a respondeu. Assim, resultados obtidos com configurações diferentes nunca se misturam nas análises.
 
 \subsection{Rotas da API}
 \label{sec-aplicacao-backend-rotas}
@@ -259,14 +258,14 @@ O banco SQLite tem seis tabelas, apresentadas na Figura~\ref{fig-er}. O SQLite f
     \item \code{index\_versions}: versões do índice, identificadas pela impressão digital (Seção~\ref{sec-aplicacao-backend-versao});
     \item \code{query\_runs}: uma linha por consulta, com pergunta, modalidade, parâmetros, origem (interface, avaliação ou API), versão do índice, estado, resposta e métricas, inclusive o detalhamento de chamadas e \textit{tokens} por etapa;
     \item \code{query\_steps}: as etapas de cada consulta, na ordem em que ocorreram, com o conteúdo de cada evento em JSON;
-    \item \code{questions}, \code{evaluation\_runs} e \code{assessments}: perguntas de teste, rodadas de avaliação (modalidades e repetições) e notas atribuídas às respostas, que serão utilizadas na avaliação (Capítulo~\ref{sec-avaliacao}).
+    \item \code{questions}, \code{evaluation\_runs} e \code{assessments}: perguntas de teste, rodadas de avaliação (modalidades e repetições) e notas atribuídas às respostas. Essas tabelas já estão criadas, mas serão utilizadas apenas na avaliação comparativa proposta como trabalho futuro.
 \end{itemize}
 
 %%% Início de seção. %%%
 \section{\textit{Frontend}}
 \label{sec-aplicacao-frontend}
 
-O \textit{frontend} é uma aplicação de página única com três abas -- Grafo, Consultas e Histórico -- e um cabeçalho que mostra a versão do índice em uso. As três telas permanecem carregadas e são apenas ocultadas ao trocar de aba; assim, é possível, por exemplo, iniciar uma consulta demorada e explorar o grafo enquanto ela é executada. O grafo é carregado uma única vez e compartilhado entre as telas.
+O \textit{frontend} é uma aplicação de página única com três abas -- Grafo, Consultas e Histórico -- e um cabeçalho que mostra a versão do índice em uso. O grafo é carregado uma única vez e compartilhado entre as telas.
 
 \subsection{Comunicação com o \textit{backend}}
 \label{sec-aplicacao-frontend-proxy}
@@ -353,27 +352,14 @@ O cálculo depende da modalidade, porque cada uma recupera um tipo diferente de 
     \item \textbf{Global}: as entidades das comunidades cujos relatórios foram citados nos pontos-chave relevantes da etapa map e na resposta final.
 \end{itemize}
 
-O contraste entre as modalidades é informativo. Na busca local sobre o art. 49, o contexto é um conjunto pequeno de 26 entidades e 9 relações em torno do artigo (Figura~\ref{fig-app-destaque}); na básica, os dez trechos recuperados por similaridade ``tocam'' uma região de centenas de entidades, mas o modelo recebe apenas o texto; na global, o contexto é definido por comunidades inteiras.
-
-%%% Início de seção. %%%
-\section{Problemas de Ambiente}
-\label{sec-aplicacao-problemas}
-
-Além dos defeitos da biblioteca, o desenvolvimento enfrentou problemas de ambiente que vale registrar, por serem comuns em projetos semelhantes:
-
-\begin{itemize}
-    \item \textbf{Página em branco.} Após reconstruir a imagem do \textit{frontend}, a aplicação passou a exibir uma página em branco. O arquivo de dependências pedia a versão 4 do Tailwind CSS, mas o código havia sido escrito para a versão 3, cuja forma de configuração é diferente; o processamento do CSS falhava e derrubava a aplicação. A versão foi fixada na série 3.
-    \item \textbf{Dependências da máquina dentro da imagem.} A correção acima não surtia efeito porque, sem um arquivo \code{.dockerignore}, a cópia do código para a imagem incluía a pasta de dependências da máquina local, sobrescrevendo a instalação limpa feita na imagem. Foram criados arquivos \code{.dockerignore} para o \textit{frontend} e o \textit{backend}.
-    \item \textbf{Recursão infinita na árvore da DRIFT.} O estado da busca DRIFT pode conter arestas repetidas e laços (uma pergunta ligada a si mesma); sem tratamento, a renderização da árvore entrava em recursão infinita e travava a página. A árvore passou a ignorar laços e arestas repetidas.
-\end{itemize}
+O uso desse destaque na análise de consultas reais é apresentado no Capítulo~\ref{sec-analise}.
 
 %%% Início de seção. %%%
 \section{Validação Funcional}
 \label{sec-aplicacao-validacao}
 
-A aplicação foi validada em duas etapas. Na primeira, para não gerar custos durante o desenvolvimento, utilizou-se o índice real com os modelos simulados (\textit{mock}) oferecidos pela própria biblioteca, aos quais foi acrescentado suporte a \textit{streaming} apenas no ambiente de teste. Esse ambiente exercitou as quatro modalidades, o fluxo de eventos, a gravação no banco, o histórico e a interface, com testes automatizados em navegador e capturas de tela. Foi nessa etapa que se identificaram a falha da busca básica e a recursão da árvore da DRIFT.
 
-Na segunda etapa, foram feitas consultas reais, com custo, em cada modalidade de busca já habilitada, resumidas na Tabela~\ref{tab-validacao}. A busca local sobre o art. 49 respondeu corretamente (prazo de sete dias, contratação fora do estabelecimento comercial, devolução imediata e atualizada dos valores), citando a unidade de texto do artigo. A busca básica sobre o art. 54-E, que validou a correção da Seção~\ref{sec-aplicacao-backend-basic}, respondeu corretamente que o artigo foi vetado -- informação disponível apenas porque o texto vetado foi mantido no corpus. Nessa consulta, os primeiros trechos recuperados por similaridade foram os dos arts. 34 e 52, e não o do art. 54-E, um exemplo da limitação de que similaridade não é relevância (Seção~\ref{sec-referencial-rag}).
+Para validar as funcionalidades implementadas, foram feitas consultas reais, com custo, nas buscas básica, local e DRIFT (Tabela~\ref{tab-validacao}). As três foram concluídas, com respostas corretas e todas as etapas registradas no banco, e a consulta da busca básica confirmou a correção descrita na Seção~\ref{sec-aplicacao-backend-basic}. Essas consultas são analisadas em detalhes no Capítulo~\ref{sec-analise}.
 
 \begin{table}[htb]
 \centering
@@ -384,11 +370,9 @@ Na segunda etapa, foram feitas consultas reais, com custo, em cada modalidade de
 \toprule
 \textbf{Busca} & \textbf{Pergunta} & \textbf{Chamadas} & \textbf{Entrada} & \textbf{Saída} & \textbf{Tempo} \\
 \midrule
-Local & O que diz o art. 49 do CDC sobre o direito de arrependimento? & 1 & 10.154 & 205 & 8,6 s \\
 Básica & O que acontece com o art. 54-E do CDC? & 1 & 4.452 & 123 & 6,6 s \\
+Local & O que diz o art. 49 do CDC sobre o direito de arrependimento? & 1 & 10.154 & 205 & 8,6 s \\
 DRIFT & Quais são os direitos básicos do consumidor? & 67 & 524.646 & 62.925 & 220,9 s \\
 \bottomrule
 \end{tabular}
 \end{table}
-
-A consulta DRIFT, feita com a configuração padrão, respondeu corretamente com base no art. 6º, mas sua análise detalhada revelou dois pontos que motivaram uma revisão da configuração antes da avaliação. O primeiro é o custo: 67 chamadas e mais de meio milhão de \textit{tokens} de entrada, cerca de cinquenta vezes uma busca local. O segundo é que, nas 60 buscas locais executadas pela DRIFT, o contexto não continha nenhuma entidade, relação ou relatório, apenas trechos de texto, em razão das proporções padrão de contexto (defeito 7 da Tabela~\ref{tab-defeitos}). A árvore de perguntas tinha 502 nós, dos quais apenas 61 foram respondidos, o que corresponde ao funcionamento esperado do algoritmo. As decisões de configuração decorrentes dessa análise são tratadas no Capítulo~\ref{sec-avaliacao}. \aluno{A busca global ainda não foi executada com o modelo real; incluir aqui quando for.}

@@ -11,7 +11,7 @@ Este capítulo descreve em detalhes o GraphRAG na versão 3.1.0, utilizada neste
 \section{Visão Geral e Organização}
 \label{sec-graphrag-visao}
 
-O GraphRAG é distribuído como pacote Python sob licença MIT. A partir da versão 3, a biblioteca foi dividida em pacotes menores, instalados em conjunto: \code{graphrag} (\textit{pipeline} de indexação, motores de consulta, ajuste de \textit{prompts}, API e CLI), \code{graphrag\_llm} (acesso a modelos, por meio do LiteLLM \cite{litellm}), \code{graphrag\_chunking} (segmentação de texto), \code{graphrag\_input} (leitura dos documentos de entrada), \code{graphrag\_storage} e \code{graphrag\_cache} (armazenamento de arquivos e cache), \code{graphrag\_vectors} (bancos vetoriais) e \code{graphrag\_common} (configuração e utilitários).
+O GraphRAG é distribuído como pacote Python sob licença MIT. A partir da versão 3, sua estrutura foi reorganizada em pacotes menores. O pacote principal, \code{graphrag} reúne funcionalidades como o \textit{pipeline} de indexação, motores de consulta, ajuste de \textit{prompts}, API e CLI).
 
 O uso mais comum é pela linha de comando, que oferece os comandos:
 
@@ -28,7 +28,7 @@ Um projeto do GraphRAG é uma pasta raiz (passada com a opção \code{--root}) c
 \begin{lstlisting}[caption={Estrutura da pasta raiz de um projeto GraphRAG (a pasta \code{data/} deste trabalho).}, label=lst-estrutura-raiz]
 data/
   settings.yaml        configuração completa (modelos, indexação e consultas)
-  .env                 chaves de API (fora do controle de versão)
+  .env                 chaves de API 
   prompts/             prompts de indexação e de consulta (arquivos .txt)
   input/               documentos de entrada (texto, CSV ou JSON)
   output/              resultado da indexação: tabelas .parquet e banco vetorial LanceDB
@@ -79,7 +79,7 @@ Os documentos de entrada podem ser arquivos de texto, CSV ou JSON. Nos formatos 
 
 Na etapa \code{extract\_graph}, cada unidade de texto é inserida no \textit{prompt} de extração, que contém instruções, a lista de tipos de entidade permitidos, exemplos de extração e o texto a processar. O modelo responde em um formato textual delimitado: cada entidade é emitida com nome, tipo e descrição, e cada relação, com entidade de origem, entidade de destino, descrição e uma força de 1 a 10 (a Listagem~\ref{lst-formato-extracao} mostra o formato com um exemplo real deste trabalho).
 
-\begin{lstlisting}[caption={Formato de saída da extração de entidades e relações (exemplo simplificado de uma resposta real sobre o art. 49 do CDC).}, label=lst-formato-extracao]
+\begin{lstlisting}[caption={Formato de saída da extração de entidades e relações (exemplo simplificado).}, label=lst-formato-extracao]
 ("entity"<|>ART. 49 DO CDC<|>dispositivo_legal<|>Dispositivo vigente ... Assegura ao consumidor
    o direito de desistir do contrato celebrado fora do estabelecimento comercial em sete dias ...)
 ##
@@ -93,7 +93,7 @@ Na etapa \code{extract\_graph}, cada unidade de texto é inserida no \textit{pro
 
 Para aumentar a cobertura, a extração pode ser repetida sobre a mesma unidade de texto em rodadas adicionais (\textit{gleanings}), controladas por \code{max\_gleanings}. Em cada rodada, a conversa continua com a mensagem fixa ``MANY entities and relationships were missed in the last extraction'' e o modelo acrescenta entidades e relações. Entre rodadas, o modelo é perguntado se ainda há entidades faltando (resposta ``Y'' ou ``N''), o que pode encerrar o processo antes do limite. Com \code{max\_gleanings} igual a 1, cada unidade de texto custa duas chamadas ao modelo.
 
-Concluída a extração, os resultados de todas as unidades são combinados. Entidades com o mesmo nome \textbf{e} o mesmo tipo são fundidas em uma única entidade, que acumula a lista de descrições parciais e a lista de unidades de texto em que aparece (sua frequência). Relações com a mesma origem e o mesmo destino também são fundidas, e o peso resultante é a soma das forças atribuídas em cada ocorrência. Esse critério de fusão tem duas consequências práticas: nomes diferentes para a mesma entidade (``ART. 6'', ``ARTIGO 6º'') geram nós duplicados, e o mesmo nome com tipos diferentes também gera nós distintos. Relações que citam entidades não extraídas são descartadas. Por isso, a padronização de nomes no \textit{prompt} de extração tem efeito direto sobre a qualidade do grafo.
+Concluída a extração, os resultados de todas as unidades são combinados. Entidades com o mesmo nome \textbf{e} o mesmo tipo são fundidas em uma única entidade, que acumula a lista de descrições parciais e a lista de unidades de texto em que aparece (sua frequência). Relações com a mesma origem e o mesmo destino também são fundidas, e o peso resultante é a soma das forças atribuídas em cada ocorrência. Esse critério de fusão tem duas consequências práticas: nomes diferentes para a mesma entidade geram nós duplicados, e o mesmo nome com tipos diferentes também gera nós distintos. Relações que citam entidades não extraídas são descartadas. Por isso, a padronização de nomes no \textit{prompt} de extração tem efeito direto sobre a qualidade do grafo.
 
 \subsection{Resumo de descrições}
 \label{sec-graphrag-indexacao-resumo}
@@ -226,7 +226,7 @@ Dois comportamentos do código, não descritos na documentação, são relevante
 \subsection{Busca básica}
 \label{sec-graphrag-consultas-basic}
 
-A busca básica (\textit{basic search}) é uma implementação de RAG vetorial tradicional: a pergunta é convertida em \textit{embedding}, as $k$ unidades de texto mais similares (padrão 10) são recuperadas do banco vetorial e inseridas no \textit{prompt}, e o modelo gera a resposta em uma única chamada. Ela não utiliza entidades, relações ou comunidades. Por compartilhar com as demais modalidades o mesmo corpus, a mesma segmentação, o mesmo modelo de \textit{embeddings} e o mesmo modelo gerador, ela é usada neste trabalho como \textit{baseline}: a diferença entre ela e as demais modalidades é, essencialmente, o uso da estrutura de grafo.
+A busca básica (\textit{basic search}) é uma implementação de RAG vetorial tradicional: a pergunta é convertida em \textit{embedding}, as $k$ unidades de texto mais similares (padrão 10) são recuperadas do banco vetorial e inseridas no \textit{prompt}, e o modelo gera a resposta em uma única chamada. Ela não utiliza entidades, relações ou comunidades. Por compartilhar com as demais modalidades o mesmo corpus, a mesma segmentação, o mesmo modelo de \textit{embeddings} e o mesmo modelo gerador, ela é usada neste trabalho como referência de RAG vetorial (\textit{baseline}): a diferença entre ela e as demais modalidades é, essencialmente, o uso da estrutura de grafo.
 
 \subsection{Comparação entre as modalidades}
 \label{sec-graphrag-consultas-comparacao}
@@ -285,7 +285,7 @@ Todas as interações do GraphRAG com os modelos são guiadas por \textit{prompt
 \end{tabular}
 \end{table}
 
-O \textit{prompt} de extração é o mais importante, por definir o grafo. Ele é organizado em seções: objetivo (``\textit{-Goal-}''), passos (``\textit{-Steps-}''), com a lista de tipos de entidade e o formato de saída; exemplos (``\textit{-Examples-}''), cada um com um texto de entrada e a extração esperada; e os dados reais (``\textit{-Real Data-}''), onde a unidade de texto é inserida. Os exemplos ensinam ao modelo, por demonstração, o nível de detalhe esperado, a forma de nomear entidades e o idioma das descrições. Como o \textit{prompt} é enviado em cada chamada de extração, seu tamanho multiplica o custo da indexação: um \textit{prompt} de 12 mil \textit{tokens} enviado em 260 chamadas representa mais de 3 milhões de \textit{tokens} de entrada.
+O \textit{prompt} de extração é o mais importante, por definir o grafo. Ele é organizado em seções: objetivo (``\textit{-Goal-}''), passos (``\textit{-Steps-}''), com a lista de tipos de entidade e o formato de saída; exemplos (``\textit{-Examples-}''), cada um com um texto de entrada e a extração esperada; e os dados reais (``\textit{-Real Data-}''), onde a unidade de texto é inserida. Os exemplos ensinam ao modelo, por demonstração, o nível de detalhe esperado, a forma de nomear entidades e o idioma das descrições. Como o \textit{prompt} é enviado em cada chamada de extração, seu tamanho multiplica o custo da indexação.
 
 \subsection{Ajuste automático de \textit{prompts}}
 \label{sec-graphrag-prompts-tune}
@@ -296,7 +296,7 @@ O comando \code{graphrag prompt-tune} gera \textit{prompts} de indexação adapt
 \section{Configuração}
 \label{sec-graphrag-config}
 
-O \code{settings.yaml} reúne toda a configuração do GraphRAG em seções. Antes de interpretar o arquivo, a biblioteca substitui referências a variáveis de ambiente no formato \verb|${NOME}| pelo valor correspondente, lido do arquivo \code{.env} da pasta raiz; é assim que as chaves de API são fornecidas sem que fiquem escritas na configuração. A substituição é feita no texto do arquivo inteiro, inclusive nos comentários (Seção~\ref{sec-graphrag-defeitos}). A configuração completa usada neste trabalho está no Apêndice~\ref{sec-apendice-config}.
+O \code{settings.yaml} reúne toda a configuração do GraphRAG em seções. Antes de interpretar o arquivo, a biblioteca substitui referências a variáveis de ambiente no formato \verb|${NOME}| pelo valor correspondente, lido do arquivo \code{.env} da pasta raiz; é assim que as chaves de API são fornecidas sem que fiquem escritas na configuração. A configuração completa usada neste trabalho está no Apêndice~\ref{sec-apendice-config}.
 
 \subsection{Modelos}
 \label{sec-graphrag-config-modelos}
@@ -398,7 +398,7 @@ As opções das modalidades de consulta estão nas seções \code{local\_search}
  & \footnotesize \code{local\_search\_temperature}, \code{reduce\_temperature} & \footnotesize 0 & \footnotesize Únicas temperaturas definidas por padrão nas consultas (Seção~\ref{sec-graphrag-defeitos}). \\
 \end{longtable}
 
-Do ponto de vista de custo, as opções se dividem em dois grupos. As que controlam o \textbf{tamanho do contexto} (\code{max\_context\_tokens}, \code{k}, proporções) alteram os \textit{tokens} de cada chamada de forma aproximadamente linear. As que controlam o \textbf{número de chamadas} (\code{community\_level} na busca global; \code{drift\_k\_followups} e \code{n\_depth} na DRIFT) multiplicam o custo e são as que mais pesam: a busca global no nível 2 e a DRIFT com os valores padrão custam, cada uma, mais de cinquenta vezes o que custa uma busca local. Uma análise detalhada de cada opção, com cenários de custo estimados a partir de medições, foi registrada na documentação do projeto e fundamenta as escolhas de configuração da avaliação.
+Do ponto de vista de custo, as opções se dividem em dois grupos. As que controlam o \textbf{tamanho do contexto} (\code{max\_context\_tokens}, \code{k}, proporções) alteram os \textit{tokens} de cada chamada de forma aproximadamente linear. As que controlam o \textbf{número de chamadas} (\code{community\_level} na busca global; \code{drift\_k\_followups} e \code{n\_depth} na DRIFT) multiplicam o custo e são as que mais pesam.
 
 %%% Início de seção. %%%
 \section{Defeitos e Comportamentos Não Documentados}
@@ -431,4 +431,6 @@ O uso do GraphRAG fora dos exemplos da documentação -- em português, com taxo
 \footnotesize 9 & \footnotesize Nas buscas local e básica, o contexto recuperado só é notificado aos \textit{callbacks} depois da geração da resposta. & \footnotesize Não é possível exibir o contexto antes da resposta usando apenas a interface de \textit{callbacks}. \\
 \footnotesize 10 & \footnotesize As métricas de \textit{tokens} das consultas são calculadas pela contagem do texto enviado e recebido. & \footnotesize Não incluem os \textit{tokens} de raciocínio dos modelos de raciocínio e, portanto, subestimam o custo real. \\
 \footnotesize 11 & \footnotesize A versão do LiteLLM utilizada não reconhece modelos lançados depois dela. & \footnotesize Parâmetros não suportados pelo modelo não são filtrados automaticamente e precisam ser definidos de forma compatível na configuração. \\
+\footnotesize 12 & \footnotesize A busca básica converte os resultados da busca vetorial em um conjunto de identificadores e filtra a tabela de unidades de texto por ele. & \footnotesize Os trechos são enviados ao modelo na ordem do corpus, e não na ordem de similaridade; o modelo não sabe quais trechos são mais relevantes. \\
+\footnotesize 13 & \footnotesize Na busca local, os relatórios de comunidade não são truncados e só entram se couberem na fração reservada a eles (15\% de 12 mil \textit{tokens}, por padrão). & \footnotesize Com relatórios maiores que essa fração, como os deste índice, nenhum relatório é incluído no contexto, sem aviso. \\
 \end{longtable}
