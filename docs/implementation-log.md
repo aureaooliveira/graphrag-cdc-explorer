@@ -653,6 +653,57 @@ análise qualitativa** do que cada modalidade recupera e envia ao modelo.
   futuro). Sem marcações `\aluno{}`/`\pendente{}` restantes; 91 páginas.
 - `ch6-avaliacao.tex` não é mais usado (pode ser apagado).
 
+### 17.2 Revisão da monografia e cores do grafo (18/10/2026)
+
+- Repositório renomeado para `graphrag-cdc-explorer`; link atualizado na monografia e
+  notas de rodapé com os arquivos no GitHub (texto bruto, parser, `cdc.json`,
+  `prompt_tune.py`, prompts, metadados, `settings.yaml`, release `v0.1.0` com logs).
+- Conferidas as referências após os cortes da autora (sem referências quebradas);
+  corrigidos um parágrafo que começava pela metade (custo da indexação, cap. 4) e um
+  parêntese solto (cap. 3).
+- **Peso das relações** (cap. 3): força 1–10 dada pelo modelo em cada ocorrência (1 se
+  não puder ser lida); na fusão, soma das forças por par origem→destino. Neste índice,
+  5.773 de 6.885 relações têm peso 10 e 97% aparecem em um único trecho: o peso ≈ 10 ×
+  nº de artigos. Usado no Leiden (grafo não direcionado; par invertido mantém um só,
+  sem somar) e como coluna na busca local (ordenação por `combined_degree`).
+- **DRIFT: código × documentação** (conferidos a documentação oficial e o post da
+  Microsoft): seleção aleatória das perguntas; HyDE com relatório sorteado não
+  documentado; duplo papel de `drift_k_followups`; proporções sem explicação do
+  restante; opções documentadas sem efeito; post diz 2 iterações, padrão 3; perguntas
+  não respondidas na árvore.
+- Tabela 2 (modalidades) com mais espaçamento.
+- **Apêndice B** (`apB-defeitos.tex`): defeitos do GraphRAG (antiga seção 3.7), correção
+  da busca básica (antiga 5.4.5), outros contornos no backend, ajuste de prompts, erros
+  de configuração, problemas do parser e de ambiente.
+- Diagrama do banco no padrão relacional (atributos, tipos, PK/FK/UQ, cardinalidade).
+- **Cores do grafo (frontend)**: as comunidades usavam hash de `comm-<id>`; ids
+  próximos davam matizes quase iguais (o nível 0 parecia ter 2 cores). Agora:
+  `lib/colors.ts` com paleta fixa para os 14 tipos e ângulo áureo para comunidades;
+  `GraphView` e `Legend` usam essas funções. **Requer rebuild do frontend.**
+- Novas figuras: painel de detalhes da entidade (DIREITO DE ARREPENDIMENTO), grafo nos
+  níveis 0/1/2 (cobertura: 99,9% / 99,9% / 85% / 24% nos níveis 0–3), tipos
+  consumidor/fornecedor/produto/serviço filtrados, e figuras geradas por
+  `scripts/graph_figures.py` (graus, especialização por tipo, vizinhança do direito de
+  arrependimento).
+- Cap. 6, nova seção "O Grafo Resultante": entidades centrais (CONSUMIDOR grau 597, em
+  94 de 130 artigos), especialização gênero/espécie (inclusive o art. 18, § 6º sob
+  PRODUTO IMPRÓPRIO AO USO E CONSUMO), pesos, pontes (Leis 14.181/2021 e 7.347/1985),
+  comunidades temáticas que não seguem os títulos da lei.
+
+### 17.3 Monografia sem apêndices (19/10/2026)
+
+- Apêndices A (settings.yaml) e B (defeitos) retirados para manter o documento em 85
+  páginas. O conteúdo do apêndice B virou `docs/observacoes-implementacao.md` (mesma
+  numeração 1–13 dos defeitos), referenciado por nota de rodapé; o `settings.yaml` é
+  referenciado no repositório (cap. 4 e Introdução).
+- Cap. 3 voltou a ter a seção "Defeitos e Comportamentos Não Documentados", só com uma
+  tabela-resumo de uma linha por defeito (os caps. 5 e 6 citam os números).
+- Redução de páginas: tecnologias do cap. 2 em tabela; listas mais compactas
+  (`\setlist`); parâmetros de posicionamento de figuras; figuras menores; níveis de
+  comunidade lado a lado. Resultado: 85 páginas.
+- Corrigida a legenda da figura do contexto da busca básica (ordem do corpus).
+- `apA-configuracao.tex` e `apB-defeitos.tex` não são mais usados.
+
 ## 18. Histórico cronológico
 
 | Data | Etapa |
@@ -665,3 +716,5 @@ análise qualitativa** do que cada modalidade recupera e envia ao modelo.
 | 12/10/2026 | Consulta DRIFT real; análise do custo e das proporções de contexto da DRIFT |
 | 13/10/2026 | Documentação das opções de busca; primeira versão da monografia em LaTeX (caps. 1 a 5) |
 | 15/10/2026 | Monografia reorientada: PoC como ferramenta de análise qualitativa (cap. 6); avaliação comparativa como trabalho futuro |
+| 18/10/2026 | Revisão da monografia: peso das relações, DRIFT × documentação, apêndice de defeitos, novas figuras e análise do grafo; cores do grafo corrigidas no frontend |
+| 19/10/2026 | Monografia em 85 páginas, sem apêndices; `docs/observacoes-implementacao.md` |

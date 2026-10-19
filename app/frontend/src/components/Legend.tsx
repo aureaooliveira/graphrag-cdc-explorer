@@ -1,24 +1,12 @@
 import React from "react";
 import { MetaData } from "../types/graph";
 import { Card, CardContent } from "./ui/card";
+import { colorFor } from "@/lib/colors";
 
 interface LegendProps {
   meta: MetaData | null;
   colorMode: "type" | "community";
 }
-
-// Same logic as in GraphView for consistency
-const colorCache: Record<string, string> = {};
-const generateColor = (seed: string) => {
-  if (colorCache[seed]) return colorCache[seed];
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = seed.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const color = `hsl(${Math.abs(hash) % 360}, 70%, 60%)`;
-  colorCache[seed] = color;
-  return color;
-};
 
 export const Legend: React.FC<LegendProps> = ({ meta, colorMode }) => {
   if (!meta || colorMode !== "type") return null;
@@ -32,7 +20,7 @@ export const Legend: React.FC<LegendProps> = ({ meta, colorMode }) => {
             <div key={type} className="flex items-center gap-2">
               <div 
                 className="w-3 h-3 rounded-full shadow-sm" 
-                style={{ backgroundColor: generateColor(type) }} 
+                style={{ backgroundColor: colorFor(type) }} 
               />
               <span className="text-xs">{type}</span>
             </div>

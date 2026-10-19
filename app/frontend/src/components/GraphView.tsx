@@ -1,6 +1,7 @@
 import React, { useRef, useMemo, useCallback, useState, useEffect } from "react";
 import ForceGraph2D from "react-force-graph-2d";
 import type { GraphData, GraphHighlight, GraphNode } from "../types/graph";
+import { colorFor, communityColor } from "@/lib/colors";
 
 interface GraphViewProps {
   data: GraphData | null;
@@ -16,19 +17,6 @@ interface GraphViewProps {
   width?: number;
   height?: number;
 }
-
-// Generate consistent colors for types/communities
-const colorCache: Record<string, string> = {};
-const generateColor = (seed: string) => {
-  if (colorCache[seed]) return colorCache[seed];
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = seed.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const color = `hsl(${Math.abs(hash) % 360}, 70%, 60%)`;
-  colorCache[seed] = color;
-  return color;
-};
 
 export const GraphView: React.FC<GraphViewProps> = ({
   data,
@@ -103,10 +91,10 @@ export const GraphView: React.FC<GraphViewProps> = ({
   const getNodeColor = useCallback((node: any) => {
     if (highlight && !highlight.nodeIds.has(node.id)) return "rgba(180, 180, 180, 0.18)";
     if (colorMode === "type") {
-      return generateColor(node.type || "unknown");
+      return colorFor(node.type || "unknown");
     } else {
       const comm = node.communities?.find((c: any) => c.level === communityLevel);
-      return comm ? generateColor(`comm-${comm.community_id}`) : "#cccccc";
+      return comm ? communityColor(comm.community_id) : "#cccccc";
     }
   }, [colorMode, communityLevel, highlight]);
 
