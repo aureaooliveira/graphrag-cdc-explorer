@@ -210,6 +210,8 @@
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric,shapes.multipart,fit,backgrounds,calc}
 % Tabelas longas e colunas com quebra de linha.
 \usepackage{longtable}
+\usepackage{float}
+\usepackage{needspace}  % evita título de seção isolado no fim da página  % [H]: mantém a figura/tabela exatamente onde está no texto
 \usepackage{booktabs}
 \usepackage{array}
 \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
@@ -238,6 +240,19 @@
 	bookmarksdepth=4
 }
 \makeatother
+
+% Posicionamento de figuras e tabelas: permite mais flutuantes por página e reduz páginas
+% com espaço em branco.
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.8}
+\renewcommand{\textfraction}{0.07}
+\renewcommand{\floatpagefraction}{0.8}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{5}
+
+% Listas mais compactas.
+\setlist{itemsep=1pt, topsep=3pt, parsep=1pt}
 
 % Espaçamentos entre linhas e parágrafos.
 \setlength{\parindent}{1.3cm}
@@ -465,22 +480,9 @@
 \bibliography{bibliografia}
 
 
-% Apêndices.
-\begin{apendicesenv}
+% Apêndices: a configuração completa (data/settings.yaml) e as observações de implementação
+% (docs/observacoes-implementacao.md) estão no repositório do projeto.
 
-% Imprime uma página indicando o início dos apêndices.
-\partapendices
-
-% (*) Incluir como apêndice a documentação técnica produzida durante o PG (especificação de requisitos,
-% projeto arquitetural, etc.). Utilizar o exemplo \includepdf caso o documento seja produzido em outro
-% editor de texto (Microsoft Word, LibreOffice Writer) e transformado em PDF. Utilizar o exemplo \include
-% caso os documentos tenham sido também escritos em LaTeX.
-% \includepdf[pages={1-}]{apendices/apendice01-requisitos.pdf}
-% \includepdf[pages={1-}]{apendices/apendice02-projeto.pdf}
-% \include{ap1-requisitos}
-% \include{ap2-projeto}
-\include{capitulos/apA-configuracao}
-\end{apendicesenv}
 
 
 % Índice remissivo.

@@ -22,12 +22,12 @@ Essa versão permitiu montar o ambiente em contêineres, entender o \textit{pipe
 \subsection{Fonte e estratégia}
 \label{sec-indexacao-corpus-fonte}
 
-O texto do CDC foi obtido da versão compilada publicada no portal da legislação federal \cite{brasil1990cdc}, que incorpora as alterações posteriores e mantém os dispositivos vetados e revogados com a respectiva indicação. Em vez de indexar o texto bruto -- o que deixaria a segmentação cortar artigos ao meio e perderia a hierarquia --, optou-se por estruturar o texto em \textbf{um registro por artigo}. Essa escolha segue a própria técnica legislativa, que define o artigo como unidade básica da lei (Seção~\ref{sec-referencial-juridico-estrutura}), e faz com que cada unidade de texto do GraphRAG corresponda a um artigo completo.
+O texto do CDC foi obtido da versão compilada publicada no portal da legislação federal \cite{brasil1990cdc}, mantida no repositório do projeto\footnote{\url{https://github.com/aureaooliveira/graphrag-cdc-explorer/blob/master/corpus/raw/cdc_planalto.txt}}, que incorpora as alterações posteriores e mantém os dispositivos vetados e revogados com a respectiva indicação. Em vez de indexar o texto bruto -- o que deixaria a segmentação cortar artigos ao meio e perderia a hierarquia --, optou-se por estruturar o texto em \textbf{um registro por artigo}. Essa escolha segue a própria técnica legislativa, que define o artigo como unidade básica da lei (Seção~\ref{sec-referencial-juridico-estrutura}), e faz com que cada unidade de texto do GraphRAG corresponda a um artigo completo.
 
 \subsection{O \textit{parser} da legislação}
 \label{sec-indexacao-corpus-parser}
 
-Foi desenvolvido em Python um \textit{parser} que lê o texto bruto e reconhece, por expressões regulares, os níveis da hierarquia da Lei Complementar nº 95/1998 \cite{brasil1998lc95} (parte, livro, título, capítulo, seção e subseção) e o início de cada artigo. Para cada artigo, gera um registro com a identificação da lei, o número e o nome de cada nível da hierarquia em que o artigo se encontra, a situação normativa e o texto completo (\textit{caput}, parágrafos, incisos e alíneas). O \textit{parser} foi escrito de forma genérica, para poder ser reaproveitado em outras leis federais. A Listagem~\ref{lst-registro-json} mostra um registro.
+Foi desenvolvido em Python um \textit{parser}\footnote{\url{https://github.com/aureaooliveira/graphrag-cdc-explorer/blob/master/corpus/parser/legislation_parser.py}} que lê o texto bruto e reconhece, por expressões regulares, os níveis da hierarquia da Lei Complementar nº 95/1998 \cite{brasil1998lc95} (parte, livro, título, capítulo, seção e subseção) e o início de cada artigo. Para cada artigo, gera um registro com a identificação da lei, o número e o nome de cada nível da hierarquia em que o artigo se encontra, a situação normativa e o texto completo (\textit{caput}, parágrafos, incisos e alíneas). O \textit{parser} foi escrito de forma genérica, para poder ser reaproveitado em outras leis federais. A Listagem~\ref{lst-registro-json} mostra um registro.
 
 \begin{lstlisting}[caption={Registro de um artigo no arquivo \code{cdc.json} (campos nulos omitidos; texto abreviado).}, label=lst-registro-json]
 {
@@ -63,7 +63,7 @@ O CDC compilado resultou em 130 artigos, dos quais 12 inteiramente vetados (arts
 \subsection{Configuração da entrada}
 \label{sec-indexacao-corpus-entrada}
 
-O arquivo resultante (\code{cdc.json}) é lido pelo GraphRAG no formato JSON, com o campo \code{id} como identificador e título do documento e o campo \code{text} como conteúdo. Os demais campos ficam disponíveis como metadados. Os nomes dos campos foram mantidos em português de propósito, já que aparecem para o modelo no início de cada trecho, como descrito a seguir.
+O arquivo resultante (\code{cdc.json})\footnote{\url{https://github.com/aureaooliveira/graphrag-cdc-explorer/blob/master/data/input/cdc.json}} é lido pelo GraphRAG no formato JSON, com o campo \code{id} como identificador e título do documento e o campo \code{text} como conteúdo. Os demais campos ficam disponíveis como metadados. Os nomes dos campos foram mantidos em português de propósito, já que aparecem para o modelo no início de cada trecho, como descrito a seguir.
 
 %%% Início de seção. %%%
 \section{Segmentação}
@@ -184,14 +184,14 @@ O comando \code{graphrag prompt-tune} (Seção~\ref{sec-graphrag-prompts-tune}) 
 \subsection{\textit{Script} próprio de ajuste}
 \label{sec-indexacao-prompts-script}
 
-Foi desenvolvido um \textit{script} que executa as mesmas etapas e utiliza as mesmas funções do ajuste automático da biblioteca, com as seguintes diferenças:
+Foi desenvolvido um \textit{script}\footnote{\url{https://github.com/aureaooliveira/graphrag-cdc-explorer/blob/master/scripts/prompt_tune.py}} que executa as mesmas etapas e utiliza as mesmas funções do ajuste automático da biblioteca, com as seguintes diferenças:
 
 \begin{itemize}
     \item usa a taxonomia da configuração, e falha se a lista de definições do \textit{script} divergir dela;
     \item insere no \textit{prompt} de extração, antes da seção de exemplos, as definições de cada tipo e as regras de nomeação (Listagem~\ref{lst-prompt-definicoes}), e fornece as mesmas orientações como mensagem de sistema na geração dos exemplos, para que estes já sigam as regras;
     \item fixa o domínio (``legislação consumerista brasileira (Código de Defesa do Consumidor, Lei nº 8.078/1990)'') e o idioma (``português do Brasil''), em vez de inferi-los;
     \item monta os trechos de exemplo exatamente como na indexação, com o mesmo segmentador e os mesmos metadados;
-    \item registra em um arquivo de metadados o modelo, a versão do GraphRAG, a \textit{persona}, o papel do redator dos relatórios, o critério de nota, os artigos usados e os alertas, para fins de reprodutibilidade.
+    \item registra em um arquivo de metadados\footnote{\url{https://github.com/aureaooliveira/graphrag-cdc-explorer/blob/master/data/prompts/prompt_tune_metadata.json}} o modelo, a versão do GraphRAG, a \textit{persona}, o papel do redator dos relatórios, o critério de nota, os artigos usados e os alertas, para fins de reprodutibilidade.
 \end{itemize}
 
 \begin{lstlisting}[caption={Trecho do \textit{prompt} de extração com as seções acrescentadas pelo \textit{script} de ajuste (abreviado).}, label=lst-prompt-definicoes]
@@ -216,21 +216,21 @@ Foi desenvolvido um \textit{script} que executa as mesmas etapas e utiliza as me
 \label{sec-indexacao-prompts-exemplos}
 
 
-Na versão final, foram escolhidos artigos curtos que, em conjunto, cobrem a maior parte da taxonomia: 49 (direito de arrependimento), 12 (responsabilidade pelo fato do produto), 42 (cobrança de dívidas), 82 (legitimados para ações coletivas), 66 (crime de afirmação falsa ou enganosa) e 56 (sanções administrativas). Os exemplos entram no \textit{prompt} nessa ordem enquanto o total couber em 12 mil \textit{tokens}. Resultaram os exemplos dos arts. 49, 12 e 42 e um \textit{prompt} de extração de 11.709 \textit{tokens}. Os tipos sem exemplo (órgãos, instrumentos processuais, sanções e crimes) são orientados apenas pelas definições.
+Na versão final, foram escolhidos artigos curtos que, em conjunto, cobrem a maior parte da taxonomia: 49 (direito de arrependimento), 12 (responsabilidade pelo fato do produto), 42 (cobrança de dívidas), 82 (legitimados para ações coletivas), 66 (crime de afirmação falsa ou enganosa) e 56 (sanções administrativas). Os exemplos entram no \textit{prompt} nessa ordem enquanto o total couber em 12 mil \textit{tokens}. Resultaram os exemplos dos arts. 49, 12 e 42 e um \textit{prompt} de extração de 11.709 \textit{tokens}. Os tipos sem exemplo são orientados apenas pelas definições.
 
-Os \textit{prompts} de indexação gerados combinam instruções em inglês (as do GraphRAG) com conteúdo em português (definições, regras, exemplos e o papel do redator), e determinam que as descrições sejam escritas em português do Brasil. O \textit{prompt} de relatórios de comunidade, por exemplo, define o redator como ``um analista jurídico especializado em legislação consumerista brasileira'' e a nota de importância como a relevância do conteúdo para a compreensão da proteção jurídica do consumidor. Os \textit{prompts} de consulta foram mantidos os padrões da biblioteca.
+Os \textit{prompts} de indexação gerados, disponíveis na pasta \code{data/prompts} do repositório\footnote{\url{https://github.com/aureaooliveira/graphrag-cdc-explorer/tree/master/data/prompts}}, combinam instruções em inglês (as do GraphRAG) com conteúdo em português (definições, regras, exemplos e o papel do redator), e determinam que as descrições sejam escritas em português do Brasil. O \textit{prompt} de relatórios de comunidade, por exemplo, define o redator como ``um analista jurídico especializado em legislação consumerista brasileira'' e a nota de importância como a relevância do conteúdo para a compreensão da proteção jurídica do consumidor. Os \textit{prompts} de consulta foram mantidos os padrões da biblioteca.
 
 %%% Início de seção. %%%
 \section{Configuração Final}
 \label{sec-indexacao-config}
 
-A configuração completa está no Apêndice~\ref{sec-apendice-config}. 
+A configuração completa está no arquivo \code{data/settings.yaml} do repositório\footnote{\url{https://github.com/aureaooliveira/graphrag-cdc-explorer/blob/master/data/settings.yaml}}.
 
 %%% Início de seção. %%%
 \section{Execução da Indexação}
 \label{sec-indexacao-execucao}
 
-A indexação foi executada no contêiner do GraphRAG via CLI, com o comando \code{graphrag index --root /data}. A execução durou cerca de 26 minutos, sem erros e sem novas tentativas de chamada, e percorreu os \textit{workflows} do método padrão: leitura das 130 entradas e criação das 130 unidades de texto; extração do grafo com uma rodada adicional (\textit{gleaning}); resumo de 8.270 descrições parciais de entidades e relações; detecção de comunidades; geração dos relatórios de comunidade; e geração de \textit{embeddings} para 400 textos. O paralelismo foi limitado a oito requisições simultâneas por modelo.
+A indexação foi executada no contêiner do GraphRAG via CLI, com o comando \code{graphrag index --root /data}. A execução durou cerca de 26 minutos, sem erros e sem novas tentativas de chamada, e percorreu os \textit{workflows} do método padrão: leitura das 130 entradas e criação das 130 unidades de texto; extração do grafo com uma rodada adicional (\textit{gleaning}); resumo de 8.270 descrições parciais de entidades e relações; detecção de comunidades; geração dos relatórios de comunidade; e geração de \textit{embeddings} para 400 textos. O paralelismo foi limitado a oito requisições simultâneas por modelo. Os registros da execução (pasta \code{logs}), com o tempo de cada \textit{workflow} e o consumo de \textit{tokens} por modelo, e o índice gerado não são versionados no código, por seu tamanho, mas estão disponíveis no pacote da versão publicada (Seção~\ref{sec-indexacao-release}).
 
 %%% Início de seção. %%%
 \section{O Grafo Resultante}
@@ -239,7 +239,7 @@ A indexação foi executada no contêiner do GraphRAG via CLI, com o comando \co
 \subsection{Visão geral}
 \label{sec-indexacao-grafo-geral}
 
-A Tabela~\ref{tab-indice} resume o índice gerado. Das 6.885 relações extraídas, 288 (cerca de 4\%) foram descartadas pela biblioteca por citarem entidades que não haviam sido extraídas. Todas as 1.373 entidades pertencem aos catorze tipos da taxonomia, e os 130 artigos do CDC aparecem como entidades no padrão de nomeação definido.
+A Tabela~\ref{tab-indice} resume o índice gerado. Das 6.885 relações extraídas, 288 (cerca de 4\%) foram descartadas pela biblioteca por citarem entidades que não haviam sido extraídas. Todas as 1.373 entidades pertencem aos catorze tipos da taxonomia, e os 130 artigos do CDC aparecem como entidades no padrão de nomeação definido. O número de comunidades diminui no nível 3 porque o algoritmo de Leiden hierárquico só subdivide as comunidades com mais entidades que o tamanho máximo configurado (10): no nível 2, a maioria já é menor que esse limite, e apenas 29 das 185 comunidades foram subdivididas, dando origem às 78 do nível 3. Por isso, os níveis mais profundos cobrem apenas parte das entidades (85\% no nível 2 e 24\% no nível 3).
 
 \begin{table}[htb]
 \centering
@@ -331,7 +331,7 @@ A Figura~\ref{fig-grafo-completo} mostra o grafo completo na aplicação desenvo
 
 \begin{figure}[htb]
 \centering
-\includegraphics[width=\textwidth]{figuras/fig-app-grafo.png}
+\includegraphics[width=.85\textwidth]{figuras/fig-app-grafo.png}
 \caption{Grafo de conhecimento do CDC na aplicação web, com as entidades coloridas por tipo.}
 \label{fig-grafo-completo}
 \end{figure}
@@ -358,11 +358,11 @@ A Tabela~\ref{tab-tokens-indexacao} apresenta o consumo de \textit{tokens} regis
 \end{tabular}
 \end{table}
 
-o \textit{prompt} de extração, com cerca de 11,7 mil \textit{tokens}, é enviado em todas as chamadas de extração, e os \textit{tokens} de raciocínio dos modelos utilizados são cobrados mas não aparecem nas contagens. A lição é que o custo do GraphRAG é dominado pela extração do grafo e pelos \textit{tokens} gerados, e que estimativas baseadas apenas no tamanho do corpus o subestimam.
+Três fatores explicam o volume de \textit{tokens}. A extração foi detalhada -- mais de 6.800 relações para 130 artigos, cada uma com uma descrição --, o que aumenta os \textit{tokens} de saída, os mais caros; o \textit{prompt} de extração, com cerca de 11,7 mil \textit{tokens}, é enviado em todas as chamadas de extração; e os \textit{tokens} de raciocínio dos modelos utilizados são cobrados mas não aparecem nas contagens. A lição é que o custo do GraphRAG é dominado pela extração do grafo e pelos \textit{tokens} gerados, e que estimativas baseadas apenas no tamanho do corpus o subestimam.
 
 %%% Início de seção. %%%
 \section{Publicação e Reprodutibilidade}
 \label{sec-indexacao-release}
 
-Para que o índice possa ser reutilizado sem nova indexação, e para que as análises sejam feitas sobre um índice identificado e imutável, o resultado foi publicado como versão (\textit{release}) do repositório no GitHub, com a marcação \code{v0.1.0}, seguindo o versionamento semântico. O pacote contém as pastas de saída, cache e registros da indexação e cópias da configuração, dos \textit{prompts} e do corpus, nos caminhos originais, acompanhado de uma soma de verificação SHA-256, de um manifesto (versão do código, modelos, estatísticas do índice, consumo de \textit{tokens} e \textit{hashes} da configuração e dos \textit{prompts}) e de notas da versão com instruções de restauração.
+Para que o índice possa ser reutilizado sem nova indexação, e para que as análises sejam feitas sobre um índice identificado e imutável, o resultado foi publicado como versão (\textit{release}) do repositório no GitHub, com a marcação \code{v0.1.0}\footnote{\url{https://github.com/aureaooliveira/graphrag-cdc-explorer/releases/tag/v0.1.0}}, seguindo o versionamento semântico. O pacote contém as pastas de saída, cache e registros da indexação e cópias da configuração, dos \textit{prompts} e do corpus, nos caminhos originais, acompanhado de uma soma de verificação SHA-256, de um manifesto (versão do código, modelos, estatísticas do índice, consumo de \textit{tokens} e \textit{hashes} da configuração e dos \textit{prompts}) e de notas da versão com instruções de restauração.
 

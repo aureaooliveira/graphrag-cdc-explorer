@@ -5,12 +5,76 @@
 \chapter{A Prova de Conceito como Ferramenta de Análise Qualitativa}
 \label{sec-analise}
 
-Um sistema de RAG costuma ser avaliado pelas respostas que produz. A resposta, porém, é o último elo de uma cadeia: antes dela, cada modalidade de busca decide o que recuperar, como organizar o que recuperou e o que efetivamente enviar ao modelo. Duas respostas parecidas podem ter origens muito diferentes, e uma resposta incompleta pode decorrer tanto de uma recuperação ruim quanto de um modelo que não aproveitou um bom contexto. Este capítulo mostra como a aplicação desenvolvida permite examinar essa cadeia, modalidade por modalidade, a partir de consultas reais registradas no histórico.
+Um sistema de RAG costuma ser avaliado pelas respostas que produz. A resposta, porém, é o último elo de uma cadeia: antes dela, cada modalidade de busca decide o que recuperar, como organizar o que recuperou e o que efetivamente enviar ao modelo. Duas respostas parecidas podem ter origens muito diferentes, e uma resposta incompleta pode decorrer tanto de uma recuperação ruim quanto de um modelo que não aproveitou um bom contexto. Este capítulo mostra como a aplicação desenvolvida permite examinar essa cadeia. A Seção~\ref{sec-analise-grafo} analisa o próprio grafo de conhecimento gerado, que é a matéria-prima das modalidades baseadas em grafo. As seções seguintes examinam, modalidade por modalidade, consultas reais registradas no histórico.
 
 As consultas analisadas são exemplos ilustrativos, escolhidos para exercitar cada modalidade com um tipo de pergunta adequado a ela, e não constituem uma avaliação comparativa: cada uma foi executada uma única vez, com perguntas diferentes, e o objetivo é mostrar o que a ferramenta torna visível. A avaliação sistemática entre modalidades é discutida como trabalho futuro no Capítulo~\ref{sec-conclusoes}.
 
 %%% Início de seção. %%%
-\section{Roteiro de Análise}
+\section{O Grafo Resultante}
+\label{sec-analise-grafo}
+
+Antes de examinar o que cada consulta recupera, vale examinar o que há para ser recuperado. A exploração do grafo na aplicação -- com filtros por tipo, coloração por comunidade e o painel de detalhes das entidades -- e uma análise das tabelas do índice revelam características do grafo que ajudam a entender tanto o CDC quanto o comportamento das buscas.
+
+\subsection{Poucas entidades centrais}
+\label{sec-analise-grafo-centrais}
+
+A distribuição dos graus é muito concentrada (Figura~\ref{fig-grafo-graus}). Metade das entidades tem até seis relações (média de 9,9), mas quatro entidades se destacam: CONSUMIDOR (597 relações), FORNECEDOR (272), PRODUTO (262) e SERVIÇO (218). São exatamente os quatro conceitos que o art. 2º e o art. 3º do CDC definem e sobre os quais todo o código se apoia. A entidade CONSUMIDOR foi extraída de 94 dos 130 artigos. Em seguida aparecem direitos transversais (DIREITO À INFORMAÇÃO, DIREITO À REPARAÇÃO DE DANOS), a tutela judicial (DEFESA DO CONSUMIDOR EM JUÍZO) e três artigos que são, eles próprios, listas: o art. 39, que enumera as práticas abusivas, o art. 6º, os direitos básicos, e o art. 51, as cláusulas abusivas. Artigos desse tipo se tornam centrais porque cada item da lista dá origem a uma entidade ligada ao artigo.
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=.75\textwidth]{figuras/fig-grafo-graus.png}
+\caption{As quinze entidades de maior grau do grafo do CDC, coloridas por tipo.}
+\label{fig-grafo-graus}
+\end{figure}
+
+Essa concentração tem uma consequência para as buscas. Como as entidades centrais estão ligadas a quase tudo, elas aparecem no contexto de muitas consultas, mas acrescentam pouca informação específica; e, na busca local, as relações são ordenadas pelo grau combinado das entidades (Seção~\ref{sec-graphrag-indexacao-extracao}), o que favorece relações com as entidades centrais.
+
+\subsection{Especialização em torno das entidades gerais}
+\label{sec-analise-grafo-especializacao}
+
+Filtrando o grafo na aplicação para exibir apenas os tipos consumidor, fornecedor, produto e serviço (Figura~\ref{fig-grafo-hubs}), observa-se uma estrutura que lembra a de uma hierarquia de classes: cada entidade geral é cercada por entidades menores que são casos particulares dela. A Figura~\ref{fig-grafo-especializacao} mostra essas estruturas em detalhe, considerando apenas as relações entre entidades do mesmo tipo.
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=.75\textwidth]{figuras/fig-grafo-hubs.png}
+\caption{Aba Grafo filtrada para os tipos consumidor, fornecedor, produto e serviço: as quatro entidades gerais cercadas pelas entidades que as especializam.}
+\label{fig-grafo-hubs}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=.88\textwidth]{figuras/fig-grafo-especializacao.png}
+\caption{Entidades de cada um dos tipos consumidor, fornecedor, produto e serviço e as relações entre elas. O tamanho dos nós é proporcional ao grau no grafo completo.}
+\label{fig-grafo-especializacao}
+\end{figure}
+
+No tipo consumidor, a entidade geral CONSUMIDOR liga-se a especializações que correspondem a figuras previstas na lei -- CONSUMIDOR EQUIPARADO, COLETIVIDADE DE PESSOAS, VÍTIMA DO EVENTO, CONSUMIDOR SUPERENDIVIDADO -- e a situações de vulnerabilidade que o código protege de forma específica, como CONSUMIDOR IDOSO, CRIANÇA, CONSUMIDOR ANALFABETO e CONSUMIDOR COM DEFICIÊNCIA. No tipo fornecedor, FORNECEDOR liga-se às espécies enumeradas no art. 3º e nos artigos de responsabilidade -- FABRICANTE, PRODUTOR, CONSTRUTOR, IMPORTADOR, COMERCIANTE -- e a figuras introduzidas pelo tratamento do crédito, como FORNECEDOR DE CRÉDITO. O tipo produto apresenta dois níveis: PRODUTO é o centro de uma estrela (produto durável, não durável, perigoso, peça de reposição, amostra grátis), e PRODUTO IMPRÓPRIO AO USO E CONSUMO é o centro de outra, com as hipóteses do art. 18, § 6º (produto deteriorado, alterado, adulterado, avariado, falsificado, corrompido, fraudado, nocivo à vida ou à saúde, em desacordo com as normas regulamentares).
+
+Essa estrutura não foi especificada em nenhum lugar: a taxonomia define apenas os tipos, e o \textit{prompt} de extração não pede relações de especialização. Ela emergiu da extração, porque o próprio texto da lei define os conceitos por gênero e espécie. Ao mesmo tempo, o grafo não distingue esse tipo de relação dos demais: a ligação entre CONSUMIDOR e CONSUMIDOR IDOSO é uma aresta como qualquer outra, com uma descrição em texto livre. Nem todas as especializações foram ligadas à entidade geral -- 8 das 30 entidades do tipo consumidor e 24 das 50 do tipo fornecedor não têm relação direta ou indireta com ela dentro do próprio tipo --, o que indica um limite da extração por trechos: a relação só é criada quando os dois conceitos aparecem no mesmo artigo.
+
+\subsection{Relações, pesos e pontes entre artigos}
+\label{sec-analise-grafo-relacoes}
+
+As relações mais frequentes ligam dispositivos legais a institutos jurídicos (567 relações), a obrigações (280) e a direitos (257), o que reflete a forma como o grafo representa a lei: cada artigo é uma entidade ligada aos conceitos que ele trata. São também essas ligações que conectam artigos distantes no texto. A Figura~\ref{fig-grafo-ego} mostra a vizinhança da entidade DIREITO DE ARREPENDIMENTO: ela liga o art. 49, que cria o direito, ao art. 54-F, que, cinco capítulos adiante e incluído por outra lei, estende seus efeitos aos contratos de crédito conexos. No texto, nada aproxima os dois artigos além do assunto; no grafo, eles estão a dois passos de distância.
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=.78\textwidth]{figuras/fig-grafo-ego-arrependimento.png}
+\caption{Relações da entidade DIREITO DE ARREPENDIMENTO, com o peso de cada uma. Em destaque, os dois artigos que a mencionam.}
+\label{fig-grafo-ego}
+\end{figure}
+
+A figura ilustra também como os pesos se comportam neste índice: quase todas as relações têm peso 10, a força máxima atribuída em uma única ocorrência, e a relação com CONSUMIDOR tem peso 19 porque aparece nos dois artigos. Como discutido na Seção~\ref{sec-graphrag-indexacao-extracao}, o peso funciona aqui, essencialmente, como uma contagem de ocorrências, e não como uma medida da intensidade da ligação.
+
+Além dos artigos do CDC, o grafo representa as normas que o código menciona, e algumas delas funcionam como pontes entre partes distantes da lei: a LEI Nº 14.181/2021, que acrescentou o tratamento do superendividamento, liga os princípios e direitos básicos (arts. 4º a 6º) e os artigos sobre crédito do Título I (arts. 54-A a 54-G) aos artigos sobre a conciliação no superendividamento, no Título III (arts. 104-A a 104-C); e a LEI Nº 7.347/1985, da ação civil pública, liga as ações coletivas do Título III às disposições finais do Título VI, que alteram essa lei. Já a entidade CÓDIGO DE DEFESA DO CONSUMIDOR, com 128 relações com artigos e normas de todo o texto, funciona como um nó de ligação genérico, que pouco informa sobre o conteúdo.
+
+\subsection{Comunidades}
+\label{sec-analise-grafo-comunidades}
+
+As comunidades do nível 0 (Tabela~\ref{tab-comunidades-n0} e Figura~\ref{fig-grafo-niveis}) correspondem a grandes temas do CDC -- tutela coletiva, superendividamento, sanções administrativas, tutela penal, vícios do produto, cadastros de consumidores --, mas não coincidem com a divisão formal da lei em títulos e capítulos. O direito de arrependimento, por exemplo, é criado no capítulo da proteção contratual, mas pertence, no nível 0, à comunidade do crédito ao consumidor, organizada em torno dos arts. 54-F e 54-G (Figura~\ref{fig-app-entidade}), o que reflete a ligação estabelecida pelo art. 54-F. O particionamento captura, portanto, uma organização temática transversal, que é a que interessa a quem pergunta sobre um assunto, e não sobre um capítulo. É essa organização que a busca global e o primer da DRIFT utilizam.
+
+%%% Início de seção. %%%
+\section{Roteiro de Análise das Consultas}
 \label{sec-analise-roteiro}
 
 Para cada consulta, a linha do tempo exibida pela aplicação (Seção~\ref{sec-aplicacao-frontend-consultas}) permite responder a um conjunto de perguntas sobre a recuperação:
@@ -60,7 +124,7 @@ A ausência de relatórios foi outro achado que a ferramenta tornou visível. Co
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=.92\textwidth]{figuras/fig-app-local-prompt.png}
+\includegraphics[width=.7\textwidth]{figuras/fig-app-local-prompt.png}
 \caption{Etapa do \textit{prompt} enviado ao modelo na consulta da busca local sobre o art. 49: instruções seguidas das tabelas de entidades, relações e trechos.}
 \label{fig-analise-prompt}
 \end{figure}

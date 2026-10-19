@@ -169,31 +169,7 @@ Os \textit{callbacks} da biblioteca, porém, não bastam para exibir o contexto 
 
 Uma consulta começa com uma requisição \code{POST /api/query}. O \textit{backend} cria o registro da consulta no banco, com estado ``em andamento'', e inicia a execução em uma tarefa assíncrona separada da conexão. Cada evento emitido pela tarefa é gravado no banco (exceto os fragmentos de resposta, para não sobrecarregá-lo) e colocado em uma fila, da qual a rota lê e envia os eventos ao navegador no formato SSE. Ao final, o registro recebe a resposta, as métricas e o estado final. Como a gravação acontece na tarefa, e não na conexão, uma consulta iniciada continua e fica registrada mesmo que o navegador seja fechado -- o que é importante para consultas que levam minutos e custam dinheiro. Para uso por \textit{scripts}, a mesma rota aceita um parâmetro que desativa o \textit{streaming} e devolve o registro completo ao final.
 
-\subsection{Correção da busca básica}
-\label{sec-aplicacao-backend-basic}
-
-O primeiro teste da busca básica pela aplicação devolveu uma resposta vazia, sem erro. A investigação no código da biblioteca mostrou a causa (defeito 1 da Tabela~\ref{tab-defeitos}): o método \code{search()} da busca básica chama a geração do modelo em modo \textit{streaming} sem o \code{await} necessário e percorre o resultado como um iterador assíncrono. O erro resultante é capturado internamente, e a busca devolve uma resposta vazia. A CLI não é afetada porque usa \code{stream\_search()}, que tem o \code{await} correto. O defeito também está presente na versão 3.2.0.
-
-Como o \textit{backend} não deve modificar a biblioteca, a correção foi feita por um invólucro (Listagem~\ref{lst-awaited}) em torno do modelo entregue ao motor da busca básica: quando o motor pede uma geração em modo \textit{streaming}, o invólucro devolve um iterador assíncrono que primeiro aguarda a chamada e depois repassa os fragmentos. Todo o resto -- \textit{prompt}, trechos recuperados, modelo e parâmetros -- permanece idêntico ao da CLI. Esse achado tem consequência direta para trabalhos que usem a biblioteca programaticamente: sem a correção, o \textit{baseline} vetorial ``responderia'' sempre vazio, o que invalidaria qualquer comparação com as modalidades baseadas em grafo.
-
-\begin{lstlisting}[language=Python, caption={Invólucro que corrige a busca básica do GraphRAG 3.1.0.}, label=lst-awaited]
-class _AwaitedStreamModel:
-    """Faz a chamada em streaming sem await devolver um iterador assíncrono."""
-    def __init__(self, model):
-        self._model = model
-
-    def __getattr__(self, name):          # demais atributos: os do modelo original
-        return getattr(self._model, name)
-
-    def completion_async(self, **kwargs):
-        if not kwargs.get("stream"):
-            return self._model.completion_async(**kwargs)
-        async def _stream():
-            response = await self._model.completion_async(**kwargs)
-            async for chunk in response:
-                yield chunk
-        return _stream()
-\end{lstlisting}
+Além desses mecanismos, o \textit{backend} contorna, sem modificar a biblioteca, defeitos do GraphRAG que afetariam as consultas, em especial uma falha que faz a busca básica devolver sempre uma resposta vazia quando usada programaticamente. Essas correções estão descritas no documento de observações de implementação do repositório do projeto\footnote{\url{https://github.com/aureaooliveira/graphrag-cdc-explorer/blob/master/docs/observacoes-implementacao.md}}.
 
 \subsection{Versionamento do índice}
 \label{sec-aplicacao-backend-versao}
@@ -231,26 +207,100 @@ GET & \code{/api/health} & Verificação de funcionamento. \\
 
 O banco SQLite tem seis tabelas, apresentadas na Figura~\ref{fig-er}. O SQLite foi escolhido por não exigir servidor, ser armazenado em um único arquivo -- fácil de copiar, versionar como resultado e inspecionar -- e ser suficiente para o volume de dados de uma prova de conceito. O banco opera no modo WAL (\textit{write-ahead logging}), que permite leituras simultâneas às gravações feitas pelas consultas em andamento.
 
-\begin{figure}[htb]
+\begin{figure}[htbp]
 \centering
 \begin{tikzpicture}[
-  node distance=8mm and 9mm,
-  ent/.style={draw, rectangle split, rectangle split parts=2, align=left, font=\scriptsize, text width=36mm, fill=gray!6},
-  rel/.style={-{Stealth[length=1.8mm]}, thick}
+  tab/.style={draw, fill=gray!4, font=\tiny, inner sep=2pt},
+  fk/.style={-{Stealth[length=1.6mm]}, thick},
+  card/.style={font=\tiny, fill=white, inner sep=0.5pt}
 ]
-\node[ent] (iv) {\textbf{index\_versions}\nodepart{second}impressão digital, \textit{hashes} da configuração e dos \textit{prompts}, modelos, estatísticas, versão do GraphRAG, data da indexação};
-\node[ent, right=of iv] (qr) {\textbf{query\_runs}\nodepart{second}pergunta, modalidade, parâmetros, origem, estado, resposta, chamadas, \textit{tokens}, tempo, \textit{tokens} por etapa};
-\node[ent, right=of qr] (qs) {\textbf{query\_steps}\nodepart{second}sequência, tipo do evento, conteúdo (JSON)};
-\node[ent, below=of iv] (q) {\textbf{questions}\nodepart{second}código, pergunta de teste, categoria, artigos esperados, observações};
-\node[ent, below=of qr] (er) {\textbf{evaluation\_runs}\nodepart{second}nome, modalidades, repetições, versão do índice, observações};
-\node[ent, below=of qs] (as) {\textbf{assessments}\nodepart{second}critério, nota, observações};
-\draw[rel] (qr) -- node[above, font=\tiny]{N:1} (iv);
-\draw[rel] (qs) -- node[above, font=\tiny]{N:1} (qr);
-\draw[rel] (qr) -- node[right, font=\tiny]{N:1} (er);
-\draw[rel] (qr.south west) -- node[above, font=\tiny, sloped]{N:1} (q.north east);
-\draw[rel] (as) -- node[above, font=\tiny, sloped]{N:1} (qr.south east);
+\node[tab, anchor=north west] (iv) at (0,0) {%
+\begin{tabular}{@{}p{5.5mm}@{}l@{\hspace{1.5mm}}l@{}}
+\multicolumn{3}{c}{\textbf{index\_versions}}\\\hline
+\textbf{PK} & id & INTEGER\\
+\textbf{UQ} & fingerprint & VARCHAR(64)\\
+ & registered\_at & DATETIME\\
+ & indexed\_at & DATETIME\\
+ & graphrag\_version & VARCHAR(32)\\
+ & settings\_sha256 & VARCHAR(64)\\
+ & prompts\_sha256 & VARCHAR(64)\\
+ & models & JSON\\
+ & stats & JSON\\
+ & label & VARCHAR(64)
+\end{tabular}};
+\node[tab, right=6mm of iv.north east, anchor=north west] (qr) {%
+\begin{tabular}{@{}p{5.5mm}@{}l@{\hspace{1.5mm}}l@{}}
+\multicolumn{3}{c}{\textbf{query\_runs}}\\\hline
+\textbf{PK} & id & VARCHAR(36)\\
+ & created\_at & DATETIME\\
+ & finished\_at & DATETIME\\
+ & question & TEXT\\
+ & method & VARCHAR(16)\\
+ & params & JSON\\
+ & source & VARCHAR(16)\\
+ & status & VARCHAR(16)\\
+\textbf{FK} & index\_version\_id & INTEGER\\
+\textbf{FK} & evaluation\_run\_id & INTEGER\\
+\textbf{FK} & question\_id & INTEGER\\
+ & repetition & INTEGER\\
+ & response & TEXT\\
+ & error & TEXT\\
+ & completion\_time & FLOAT\\
+ & llm\_calls & INTEGER\\
+ & prompt\_tokens & INTEGER\\
+ & output\_tokens & INTEGER\\
+ & usage\_by\_category & JSON
+\end{tabular}};
+\node[tab, below=9mm of iv.south west, anchor=north west] (er) {%
+\begin{tabular}{@{}p{5.5mm}@{}l@{\hspace{1.5mm}}l@{}}
+\multicolumn{3}{c}{\textbf{evaluation\_runs}}\\\hline
+\textbf{PK} & id & INTEGER\\
+ & name & VARCHAR(128)\\
+ & created\_at & DATETIME\\
+ & methods & JSON\\
+ & repetitions & INTEGER\\
+\textbf{FK} & index\_version\_id & INTEGER\\
+ & notes & TEXT
+\end{tabular}};
+\node[tab, right=6mm of qr.north east, anchor=north west] (qs) {%
+\begin{tabular}{@{}p{5.5mm}@{}l@{\hspace{1.5mm}}l@{}}
+\multicolumn{3}{c}{\textbf{query\_steps}}\\\hline
+\textbf{PK} & id & INTEGER\\
+\textbf{FK} & run\_id & VARCHAR(36)\\
+ & seq & INTEGER\\
+ & type & VARCHAR(32)\\
+ & payload & JSON\\
+ & created\_at & DATETIME
+\end{tabular}};
+\node[tab, below=6mm of qs.south west, anchor=north west] (as) {%
+\begin{tabular}{@{}p{5.5mm}@{}l@{\hspace{1.5mm}}l@{}}
+\multicolumn{3}{c}{\textbf{assessments}}\\\hline
+\textbf{PK} & id & INTEGER\\
+\textbf{FK} & run\_id & VARCHAR(36)\\
+ & criterion & VARCHAR(64)\\
+ & score & FLOAT\\
+ & notes & TEXT\\
+ & created\_at & DATETIME
+\end{tabular}};
+\node[tab, below=6mm of er.south west, anchor=north west] (qn) {%
+\begin{tabular}{@{}p{5.5mm}@{}l@{\hspace{1.5mm}}l@{}}
+\multicolumn{3}{c}{\textbf{questions}}\\\hline
+\textbf{PK} & id & INTEGER\\
+\textbf{UQ} & code & VARCHAR(32)\\
+ & text & TEXT\\
+ & category & VARCHAR(64)\\
+ & expected\_articles & JSON\\
+ & notes & TEXT\\
+ & created\_at & DATETIME
+\end{tabular}};
+\draw[fk] (qr.west |- iv.east) -- node[card, pos=0.15, above]{N} node[card, pos=0.85, above]{1} (iv.east);
+\draw[fk] (er.north) -- node[card, pos=0.2, right]{N} node[card, pos=0.8, right]{1} (iv.south);
+\draw[fk] (qr.west |- er.east) -- node[card, pos=0.15, above]{N} node[card, pos=0.85, above]{1} (er.east);
+\draw[fk] (qs.west) -- node[card, pos=0.15, above]{N} node[card, pos=0.85, above]{1} (qr.east |- qs.west);
+\draw[fk] (as.west) -- node[card, pos=0.15, above]{N} node[card, pos=0.85, above]{1} (qr.east |- as.west);
+\draw[fk] (qr.south) |- node[card, pos=0.1, right]{N} node[card, pos=0.9, above]{1} (qn.east);
 \end{tikzpicture}
-\caption{Tabelas do banco de dados da aplicação.}
+\caption{Modelo relacional do banco de dados da aplicação. PK: chave primária; FK: chave estrangeira; UQ: valor único. As setas partem da chave estrangeira para a tabela referenciada (cardinalidade N:1).}
 \label{fig-er}
 \end{figure}
 
@@ -275,13 +325,32 @@ O servidor do Vite atua como \textit{proxy}: as requisições do navegador para 
 \subsection{Aba Grafo}
 \label{sec-aplicacao-frontend-grafo}
 
-A aba Grafo (Figura~\ref{fig-grafo-completo}, no Capítulo~\ref{sec-indexacao}) exibe as 1.373 entidades e 6.885 relações com leiaute por simulação de forças. O tamanho de cada nó é proporcional ao seu grau. O painel lateral permite buscar entidades pelo nome, alternar a coloração entre tipo de entidade e comunidade (com escolha do nível da hierarquia, Figura~\ref{fig-app-comunidades}) e filtrar os tipos exibidos. Ao clicar em uma entidade, um painel mostra seu tipo, sua descrição, suas relações e os relatórios das comunidades a que pertence.
+A aba Grafo (Figura~\ref{fig-grafo-completo}, no Capítulo~\ref{sec-indexacao}) exibe as 1.373 entidades e 6.885 relações com leiaute por simulação de forças. O tamanho de cada nó é proporcional ao seu grau. O painel lateral permite buscar entidades pelo nome, alternar a coloração entre tipo de entidade e comunidade, com escolha do nível da hierarquia (Figura~\ref{fig-grafo-niveis}), e filtrar os tipos exibidos. Ao passar o cursor sobre uma relação, são exibidos sua descrição e seu peso.
+
+Ao clicar em uma entidade, a visualização é centralizada nela e um painel lateral mostra o nome, o tipo, o grau, a descrição consolidada e os resumos dos relatórios das comunidades a que a entidade pertence em cada nível da hierarquia. A Figura~\ref{fig-app-entidade} mostra o painel da entidade ``DIREITO DE ARREPENDIMENTO'', com os tipos exibidos restritos a cinco por meio dos filtros. A descrição reúne o que foi extraído de dois artigos distintos -- o art. 49 e o art. 54-F, sobre contratos conexos --, e os relatórios mostram que, nos níveis 0 e 1, a entidade pertence a comunidades organizadas em torno do crédito ao consumidor e do superendividamento, e não da proteção contratual geral, o que só se percebe pelo grafo.
 
 \begin{figure}[htb]
 \centering
-\includegraphics[width=\textwidth]{figuras/fig-app-grafo-comunidades.png}
-\caption{Aba Grafo com as entidades coloridas por comunidade.}
-\label{fig-app-comunidades}
+\includegraphics[width=.85\textwidth]{figuras/fig-app-entidade.png}
+\caption{Painel de detalhes da entidade ``DIREITO DE ARREPENDIMENTO'': tipo, grau, descrição consolidada e resumos das comunidades a que pertence em cada nível.}
+\label{fig-app-entidade}
+\end{figure}
+
+A Figura~\ref{fig-grafo-niveis} mostra o grafo colorido por comunidade nos níveis 0, 1 e 2 da hierarquia. No nível 0, as 17 comunidades formam regiões contíguas e bem delimitadas; nos níveis seguintes, as mesmas regiões se subdividem em comunidades menores. As entidades em cinza são as que não pertencem a nenhuma comunidade do nível escolhido: os níveis 0 e 1 cobrem 1.371 das 1.373 entidades (as duas restantes estão fora do maior componente conexo, ao qual a detecção de comunidades se restringe), enquanto o nível 2 cobre 85\% e o nível 3, apenas 24\%, porque só as comunidades maiores que o tamanho máximo são subdivididas. A primeira versão da coloração atribuía cores quase iguais a comunidades de identificadores próximos, problema corrigido com uma paleta fixa para os tipos e cores distribuídas pelo ângulo áureo para as comunidades.
+
+\begin{figure}[htb]
+\centering
+\begin{minipage}[t]{0.32\textwidth}\centering
+\includegraphics[width=\textwidth]{figuras/fig-grafo-nivel0.png}\\[-1mm]{\footnotesize (a) Nível 0: 17 comunidades}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.32\textwidth}\centering
+\includegraphics[width=\textwidth]{figuras/fig-grafo-nivel1.png}\\[-1mm]{\footnotesize (b) Nível 1: 89 comunidades}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.32\textwidth}\centering
+\includegraphics[width=\textwidth]{figuras/fig-grafo-nivel2.png}\\[-1mm]{\footnotesize (c) Nível 2: 185 comunidades}
+\end{minipage}
+\caption{Região central do grafo do CDC colorida por comunidade em três níveis da hierarquia (mesmo enquadramento nas três imagens). Em cinza, as entidades que não pertencem a nenhuma comunidade do nível.}
+\label{fig-grafo-niveis}
 \end{figure}
 
 \subsection{Aba Consultas}
@@ -301,22 +370,22 @@ A aba Consultas (Figura~\ref{fig-app-consultas}) tem um formulário com a pergun
 
 \begin{figure}[htb]
 \centering
-\includegraphics[width=\textwidth]{figuras/fig-app-consultas.png}
+\includegraphics[width=.75\textwidth]{figuras/fig-app-consultas.png}
 \caption{Aba Consultas: formulário com modalidade, nível de comunidade, formato da resposta e perguntas de exemplo.}
 \label{fig-app-consultas}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=.92\textwidth]{figuras/fig-app-local-resumo.png}
+\includegraphics[width=.7\textwidth]{figuras/fig-app-local-resumo.png}
 \caption{Linha do tempo de uma consulta real na busca local: etapas recolhíveis, resposta com citações e métricas.}
 \label{fig-app-local}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=.92\textwidth]{figuras/fig-app-basic-contexto.png}
-\caption{Contexto recuperado por uma consulta real na busca básica: os trechos (artigos) recuperados por similaridade, em ordem.}
+\includegraphics[width=.7\textwidth]{figuras/fig-app-basic-contexto.png}
+\caption{Contexto recuperado por uma consulta real na busca básica: os trechos (artigos) recuperados por similaridade, na ordem em que são enviados ao modelo.}
 \label{fig-app-contexto}
 \end{figure}
 
@@ -327,7 +396,7 @@ A aba Histórico (Figura~\ref{fig-app-historico}) lista as consultas registradas
 
 \begin{figure}[htb]
 \centering
-\includegraphics[width=\textwidth]{figuras/fig-app-historico.png}
+\includegraphics[width=.8\textwidth]{figuras/fig-app-historico.png}
 \caption{Aba Histórico com consultas reais nas buscas DRIFT, básica e local.}
 \label{fig-app-historico}
 \end{figure}
@@ -339,7 +408,7 @@ Para apoiar a análise qualitativa -- entender por que uma resposta saiu mais ou
 
 \begin{figure}[htb]
 \centering
-\includegraphics[width=\textwidth]{figuras/fig-app-destaque.png}
+\includegraphics[width=.85\textwidth]{figuras/fig-app-destaque.png}
 \caption{Destaque, no grafo completo, das entidades e relações usadas como contexto em uma consulta real na busca local sobre o art. 49 do CDC.}
 \label{fig-app-destaque}
 \end{figure}
@@ -359,9 +428,9 @@ O uso desse destaque na análise de consultas reais é apresentado no Capítulo~
 \label{sec-aplicacao-validacao}
 
 
-Para validar as funcionalidades implementadas, foram feitas consultas reais, com custo, nas buscas básica, local e DRIFT (Tabela~\ref{tab-validacao}). As três foram concluídas, com respostas corretas e todas as etapas registradas no banco, e a consulta da busca básica confirmou a correção descrita na Seção~\ref{sec-aplicacao-backend-basic}. Essas consultas são analisadas em detalhes no Capítulo~\ref{sec-analise}.
+Para validar as funcionalidades implementadas, foram feitas consultas reais, com custo, nas buscas básica, local e DRIFT (Tabela~\ref{tab-validacao}). As três foram concluídas, com respostas corretas e todas as etapas registradas no banco, e a consulta da busca básica confirmou a correção descrita na Seção~\ref{sec-aplicacao-backend-sse}. Essas consultas são analisadas em detalhes no Capítulo~\ref{sec-analise}.
 
-\begin{table}[htb]
+\begin{table}[H]
 \centering
 \caption{Consultas reais de validação.}
 \label{tab-validacao}
@@ -376,3 +445,5 @@ DRIFT & Quais são os direitos básicos do consumidor? & 67 & 524.646 & 62.925 &
 \bottomrule
 \end{tabular}
 \end{table}
+
+A visualização do grafo também foi verificada com o índice completo, nos dois modos de coloração (Seção~\ref{sec-aplicacao-frontend-grafo}), o que revelou e permitiu corrigir um defeito na coloração das comunidades.

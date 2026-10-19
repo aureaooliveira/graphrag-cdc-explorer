@@ -153,48 +153,45 @@ O CDC é um exemplo típico de texto de alta densidade relacional: os conceitos 
 
 O domínio jurídico tem vocabulário e estilo próprios, o que motivou modelos de linguagem especializados, como o LEGAL-BERT \cite{chalkidis2020legal}, e sistemas que combinam LLMs a bases de conhecimento jurídicas, como o ChatLaw \cite{cui2023chatlaw}. Com os LLMs de uso geral, o RAG tornou-se a abordagem predominante para assistentes jurídicos, por permitir fundamentar as respostas em legislação e jurisprudência atualizadas. A avaliação de ferramentas comerciais desse tipo mostrou, contudo, que a recuperação de trechos relevantes não garante respostas corretas: as ferramentas avaliadas ainda produziam afirmações incorretas ou com citações que não as sustentavam \cite{magesh2024hallucination}. Esses resultados motivam investigar estratégias de recuperação que representem melhor a estrutura relacional do direito, como a proposta neste trabalho.
 
+\Needspace*{0.6\textheight}
 %%% Início de seção. %%%
 \section{Tecnologias Utilizadas}
 \label{sec-referencial-tecnologias}
 
-Como o foco do trabalho é a investigação do GraphRAG, as tecnologias de apoio foram escolhidas priorizando a integração direta com a biblioteca, a simplicidade e a reprodutibilidade. Esta seção apresenta brevemente cada uma; a forma como foram utilizadas é descrita nos capítulos~\ref{sec-indexacao} e~\ref{sec-aplicacao}.
+A Tabela~\ref{tab-tecnologias} resume as tecnologias utilizadas no trabalho e o papel de cada uma.
 
-\subsection{Biblioteca GraphRAG e componentes de dados}
-\label{sec-referencial-tecnologias-graphrag}
+\begin{table}[H]
+\centering
+\caption{Tecnologias utilizadas no trabalho.}
+\label{tab-tecnologias}
+\scriptsize
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{L{1.9cm} L{5.2cm} L{7.4cm}}
+\toprule
+\textbf{Camada} & \textbf{Tecnologia} & \textbf{Papel no trabalho} \\
+\midrule
+GraphRAG e dados & GraphRAG 3.1.0 \cite{graphraggithub, graphragdocs} & Biblioteca Python (licença MIT) de indexação e consulta (Capítulo~\ref{sec-graphrag}); usada pela CLI e, como biblioteca, pelo \textit{backend} \\
+ & LiteLLM \cite{litellm} & Interface única para as APIs dos provedores de modelos, usada pelo GraphRAG em todas as chamadas \\
+ & Apache Parquet \cite{parquet} & Formato colunar das tabelas produzidas pela indexação \\
+ & LanceDB \cite{lancedb} & Banco vetorial embarcado que armazena os \textit{embeddings} \\
+ & Modelos da OpenAI \cite{openaidocs} & Modelos de linguagem e de \textit{embeddings} (Seção~\ref{sec-indexacao-modelos}) \\
+ & Ollama \cite{ollama} & Execução de modelos locais na primeira versão do projeto \\
+\midrule
+\textit{Backend} & Python e FastAPI \cite{fastapi} & \textit{Framework} web assíncrono na mesma linguagem do GraphRAG, com documentação automática da API \\
+ & REST \cite{fielding2000rest} & Estilo arquitetural da API: recursos acessados por URLs e métodos HTTP \\
+ & \textit{Server-Sent Events} \cite{whatwgsse} & Transmissão ao navegador, em uma única conexão HTTP, das etapas de cada consulta \\
+ & SQLite \cite{sqlite} e SQLAlchemy \cite{sqlalchemy} & Banco relacional embarcado em um único arquivo e biblioteca de mapeamento objeto-relacional \\
+\midrule
+\textit{Frontend} & React \cite{react} e TypeScript & Aplicação de página única (SPA) com tipagem estática \\
+ & Vite \cite{vite} & Desenvolvimento e empacotamento; seu servidor atua como \textit{proxy} para a API \\
+ & Tailwind CSS \cite{tailwind} e shadcn/ui & Estilização por classes utilitárias e componentes de interface \\
+ & react-force-graph \cite{forcegraph} & Visualização do grafo em \textit{canvas}, com leiaute por simulação de forças \\
+\midrule
+Infraestrutura & Docker e Docker Compose \cite{docker} & Cada componente em um contêiner, com versões fixadas, orquestrados por um único arquivo \\
+ & Git e GitHub & Controle de versão e publicação do índice como versão (\textit{release}) do repositório \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-\begin{itemize}
-    \item \textbf{GraphRAG} \cite{graphraggithub, graphragdocs}: biblioteca Python de código aberto (licença MIT) que implementa a indexação e as consultas descritas no Capítulo~\ref{sec-graphrag}. É utilizada pela linha de comando (\textit{Command Line Interface} -- CLI), para indexar e ajustar \textit{prompts}, e como biblioteca, pelo \textit{backend} da aplicação. Este trabalho utiliza a versão 3.1.0, fixada em todos os ambientes.
-    \item \textbf{LiteLLM} \cite{litellm}: biblioteca que oferece uma interface única para APIs de diversos provedores de modelos (OpenAI, Anthropic, Google, Ollama, entre outros). O GraphRAG a utiliza para todas as chamadas a modelos, o que permite trocar de provedor alterando apenas a configuração.
-    \item \textbf{Apache Parquet} \cite{parquet}: formato de arquivo colunar em que o GraphRAG grava as tabelas produzidas pela indexação (documentos, fragmentos, entidades, relações, comunidades e relatórios).
-    \item \textbf{LanceDB} \cite{lancedb}: banco vetorial embarcado em que o GraphRAG armazena os \textit{embeddings}.
-    \item \textbf{Modelos da OpenAI} \cite{openaidocs}: modelos de linguagem e de \textit{embeddings} acessados por API, escolhidos por etapa conforme descrito na Seção~\ref{sec-indexacao-modelos}.
-    \item \textbf{Ollama} \cite{ollama}: ferramenta para executar modelos de código aberto localmente, utilizada na primeira versão do projeto e mantida como configuração alternativa.
-\end{itemize}
+Como o foco do trabalho é a investigação do GraphRAG, as tecnologias de apoio foram escolhidas priorizando a integração direta com a biblioteca, a simplicidade e a reprodutibilidade. A forma como foram utilizadas é descrita nos capítulos~\ref{sec-indexacao} e~\ref{sec-aplicacao}.
 
-\subsection{\textit{Backend}}
-\label{sec-referencial-tecnologias-backend}
-
-\begin{itemize}
-    \item \textbf{Python} e \textbf{FastAPI} \cite{fastapi}: o \textit{backend} é escrito em Python por ser a linguagem do GraphRAG, o que permite usar a biblioteca diretamente, sem intermediários. O FastAPI é um \textit{framework} web assíncrono, adequado a operações demoradas de entrada e saída como chamadas a modelos, e gera automaticamente a documentação da API.
-    \item \textbf{REST} \cite{fielding2000rest}: estilo arquitetural adotado na API, em que recursos (consultas, histórico, grafo) são acessados por URLs e métodos HTTP.
-    \item \textbf{\textit{Server-Sent Events}} (SSE) \cite{whatwgsse}: padrão da web para que o servidor envie uma sequência de eventos ao navegador em uma única conexão HTTP. É utilizado para transmitir, à medida que acontecem, as etapas de cada consulta.
-    \item \textbf{SQLite} \cite{sqlite} e \textbf{SQLAlchemy} \cite{sqlalchemy}: o SQLite é um banco de dados relacional embarcado, armazenado em um único arquivo, sem servidor; o SQLAlchemy é a biblioteca de mapeamento objeto-relacional (ORM) utilizada para definir as tabelas e acessá-las a partir do Python.
-\end{itemize}
-
-\subsection{\textit{Frontend}}
-\label{sec-referencial-tecnologias-frontend}
-
-\begin{itemize}
-    \item \textbf{React} \cite{react} e \textbf{TypeScript}: o \textit{frontend} é uma aplicação de página única (\textit{Single Page Application} -- SPA) construída com React, biblioteca de componentes de interface, e escrita em TypeScript, que acrescenta tipagem estática ao JavaScript.
-    \item \textbf{Vite} \cite{vite}: ferramenta de desenvolvimento e empacotamento. Além de servir a aplicação, seu servidor de desenvolvimento atua como \textit{proxy} para a API, como descrito no Capítulo~\ref{sec-aplicacao}.
-    \item \textbf{Tailwind CSS} \cite{tailwind} e componentes no estilo \textbf{shadcn/ui}: estilização por classes utilitárias e componentes de interface reutilizáveis.
-    \item \textbf{react-force-graph} \cite{forcegraph}: componente de visualização de grafos com leiaute por simulação de forças, desenhado em \textit{canvas}, capaz de exibir os mais de mil nós e seis mil arestas do grafo do CDC com interação (zoom, arraste, seleção).
-\end{itemize}
-
-\subsection{Infraestrutura}
-\label{sec-referencial-tecnologias-infra}
-
-\begin{itemize}
-    \item \textbf{Docker} e \textbf{Docker Compose} \cite{docker}: cada componente (ambiente de indexação, \textit{backend}, \textit{frontend} e, opcionalmente, o servidor de modelos locais) é executado em um contêiner, com dependências e versões definidas em arquivos de imagem. O Docker Compose descreve e orquestra os serviços em um único arquivo, o que garante que o sistema seja executado da mesma forma em qualquer máquina.
-    \item \textbf{Git} e \textbf{GitHub}: controle de versão do código, da configuração e dos \textit{prompts}, e publicação do índice gerado como versão (\textit{release}) do repositório.
-\end{itemize}

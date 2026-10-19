@@ -5,13 +5,13 @@
 \chapter{O \textit{Framework} GraphRAG}
 \label{sec-graphrag}
 
-Este capítulo descreve em detalhes o GraphRAG na versão 3.1.0, utilizada neste trabalho. Além da documentação oficial \cite{graphragdocs}, a descrição baseia-se na leitura do código-fonte da biblioteca \cite{graphraggithub}, necessária porque parte do comportamento relevante -- como a divisão do contexto entre tipos de registro ou a forma como a busca DRIFT escolhe as perguntas que aprofunda -- não está documentada. A Seção~\ref{sec-graphrag-visao} apresenta a organização da biblioteca. As seções~\ref{sec-graphrag-indexacao} e~\ref{sec-graphrag-dados} descrevem o \textit{pipeline} de indexação e os dados que ele produz. A Seção~\ref{sec-graphrag-consultas} detalha as quatro modalidades de consulta. A Seção~\ref{sec-graphrag-prompts} trata dos \textit{prompts} e do ajuste automático de \textit{prompts}. A Seção~\ref{sec-graphrag-config} apresenta as opções de configuração e seus efeitos em qualidade e custo, e a Seção~\ref{sec-graphrag-defeitos} reúne os defeitos e comportamentos não documentados identificados durante o trabalho.
+Este capítulo descreve em detalhes o GraphRAG na versão 3.1.0, utilizada neste trabalho. Além da documentação oficial \cite{graphragdocs}, a descrição baseia-se na leitura do código-fonte da biblioteca \cite{graphraggithub}, necessária porque parte do comportamento relevante -- como a divisão do contexto entre tipos de registro ou a forma como a busca DRIFT escolhe as perguntas que aprofunda -- não está documentada. A Seção~\ref{sec-graphrag-visao} apresenta a organização da biblioteca. As seções~\ref{sec-graphrag-indexacao} e~\ref{sec-graphrag-dados} descrevem o \textit{pipeline} de indexação e os dados que ele produz. A Seção~\ref{sec-graphrag-consultas} detalha as quatro modalidades de consulta. A Seção~\ref{sec-graphrag-prompts} trata dos \textit{prompts} e do ajuste automático de \textit{prompts}. A Seção~\ref{sec-graphrag-config} apresenta as opções de configuração e seus efeitos em qualidade e custo, e a Seção~\ref{sec-graphrag-defeitos} resume os defeitos e comportamentos não documentados identificados durante o trabalho.
 
 %%% Início de seção. %%%
 \section{Visão Geral e Organização}
 \label{sec-graphrag-visao}
 
-O GraphRAG é distribuído como pacote Python sob licença MIT. A partir da versão 3, sua estrutura foi reorganizada em pacotes menores. O pacote principal, \code{graphrag} reúne funcionalidades como o \textit{pipeline} de indexação, motores de consulta, ajuste de \textit{prompts}, API e CLI).
+O GraphRAG é distribuído como pacote Python sob licença MIT. A partir da versão 3, sua estrutura foi reorganizada em pacotes menores. O pacote principal, \code{graphrag}, reúne o \textit{pipeline} de indexação, os motores de consulta, o ajuste de \textit{prompts}, a API e a CLI; os demais tratam de acesso a modelos (por meio do LiteLLM \cite{litellm}), segmentação de texto, leitura da entrada, armazenamento, cache e bancos vetoriais.
 
 O uso mais comum é pela linha de comando, que oferece os comandos:
 
@@ -93,7 +93,20 @@ Na etapa \code{extract\_graph}, cada unidade de texto é inserida no \textit{pro
 
 Para aumentar a cobertura, a extração pode ser repetida sobre a mesma unidade de texto em rodadas adicionais (\textit{gleanings}), controladas por \code{max\_gleanings}. Em cada rodada, a conversa continua com a mensagem fixa ``MANY entities and relationships were missed in the last extraction'' e o modelo acrescenta entidades e relações. Entre rodadas, o modelo é perguntado se ainda há entidades faltando (resposta ``Y'' ou ``N''), o que pode encerrar o processo antes do limite. Com \code{max\_gleanings} igual a 1, cada unidade de texto custa duas chamadas ao modelo.
 
-Concluída a extração, os resultados de todas as unidades são combinados. Entidades com o mesmo nome \textbf{e} o mesmo tipo são fundidas em uma única entidade, que acumula a lista de descrições parciais e a lista de unidades de texto em que aparece (sua frequência). Relações com a mesma origem e o mesmo destino também são fundidas, e o peso resultante é a soma das forças atribuídas em cada ocorrência. Esse critério de fusão tem duas consequências práticas: nomes diferentes para a mesma entidade geram nós duplicados, e o mesmo nome com tipos diferentes também gera nós distintos. Relações que citam entidades não extraídas são descartadas. Por isso, a padronização de nomes no \textit{prompt} de extração tem efeito direto sobre a qualidade do grafo.
+Concluída a extração, os resultados de todas as unidades são combinados. Entidades com o mesmo nome \textbf{e} o mesmo tipo são fundidas em uma única entidade, que acumula a lista de descrições parciais e a lista de unidades de texto em que aparece (sua frequência). Relações com a mesma origem e o mesmo destino também são fundidas, e o peso resultante é a soma das forças atribuídas em cada ocorrência, como detalhado a seguir. Esse critério de fusão tem duas consequências práticas: nomes diferentes para a mesma entidade geram nós duplicados, e o mesmo nome com tipos diferentes também gera nós distintos. Relações que citam entidades não extraídas são descartadas. Por isso, a padronização de nomes no \textit{prompt} de extração tem efeito direto sobre a qualidade do grafo.
+
+\subsubsection*{Peso das relações}
+
+O peso de uma relação é calculado em dois passos. Na extração, o \textit{prompt} pede ao modelo que atribua a cada relação uma força (\textit{relationship strength}), um número inteiro de 1 a 10 que indica a intensidade da ligação entre as duas entidades; é o último campo de cada relação na Listagem~\ref{lst-formato-extracao}. Se esse campo não puder ser lido como número, a biblioteca atribui o valor 1. Na fusão, todas as ocorrências de um mesmo par origem--destino -- em diferentes unidades de texto e nas rodadas adicionais de extração -- são reunidas, e o peso final é a \textbf{soma} das forças:
+
+\begin{equation}
+\label{eq-peso}
+w(a, b) = \sum_{o \in O(a,b)} f_o
+\end{equation}
+
+\noindent em que $O(a,b)$ é o conjunto de ocorrências da relação de $a$ para $b$ e $f_o \in \{1, \dots, 10\}$ é a força atribuída pelo modelo em cada ocorrência. O peso combina, portanto, a intensidade atribuída pelo modelo e a frequência com que a relação aparece no corpus. No índice deste trabalho, o segundo fator domina: o modelo atribuiu força 10 à grande maioria das relações (5.773 das 6.885 têm peso exatamente 10), e 97\% delas aparecem em uma única unidade de texto, de modo que o peso se aproxima de dez vezes o número de artigos em que a relação é mencionada. Os maiores pesos são os das relações entre CONSUMIDOR e DIREITO À INFORMAÇÃO (243, em 26 artigos) e entre FORNECEDOR e PRODUTO (219, em 22 artigos).
+
+O peso é usado em dois pontos. Na detecção de comunidades, o grafo é tratado como não direcionado e o peso de cada aresta é passado ao algoritmo de Leiden, de modo que relações frequentes aproximam as entidades na mesma comunidade; quando existem as duas direções de um mesmo par, apenas uma é mantida, sem somar os pesos. Na busca local, o peso é incluído como coluna na tabela de relações enviada ao modelo, mas a ordenação das relações que entram no contexto usa outro atributo, o grau combinado (\code{combined\_degree}), que é a soma dos graus das duas entidades da relação.
 
 \subsection{Resumo de descrições}
 \label{sec-graphrag-indexacao-resumo}
@@ -221,7 +234,18 @@ A busca DRIFT (\textit{Dynamic Reasoning and Inference with Flexible Traversal})
 \label{fig-drift}
 \end{figure}
 
-Dois comportamentos do código, não descritos na documentação, são relevantes para a interpretação dos resultados. Primeiro, as perguntas aprofundadas em cada rodada são escolhidas \textbf{aleatoriamente} entre as não respondidas: a função que as ordena é chamada sem critério de pontuação e, nesse caso, embaralha a lista. As notas atribuídas pelo modelo às perguntas não são usadas para priorizá-las. Segundo, como cada busca local gera novas perguntas, a árvore final contém muitas perguntas que foram geradas e nunca respondidas, o que é o funcionamento normal do algoritmo. Com os valores padrão, o número de chamadas é $1 + 5 + 3 \times 20 + 1 = 67$, valor confirmado em uma consulta real deste trabalho (Capítulo~\ref{sec-aplicacao}).
+A comparação entre o código da versão 3.1.0, a documentação oficial \cite{graphragdocs} e a publicação que apresentou a DRIFT \cite{microsoft2024drift} revelou comportamentos que não estão descritos, ou que estão descritos de forma diferente, e que são relevantes para a interpretação dos resultados:
+
+\begin{itemize}
+    \item \textbf{Seleção aleatória das perguntas.} A documentação descreve a saída como uma hierarquia de perguntas e respostas ordenadas por relevância, e a publicação menciona a confiança do algoritmo em continuar cada expansão. No código, porém, as perguntas aprofundadas em cada rodada são escolhidas \textbf{por sorteio} entre as não respondidas: a função que as ordena é chamada sem critério de pontuação e, nesse caso, embaralha a lista. As notas atribuídas pelo modelo às perguntas não são usadas para priorizá-las.
+    \item \textbf{Modelo de formato sorteado na expansão.} A expansão da pergunta pela técnica HyDE é citada na publicação, mas não na documentação, e nenhuma das duas informa que a resposta hipotética é escrita no formato de um relatório de comunidade sorteado, outra fonte de variação entre execuções.
+    \item \textbf{Duplo papel de \code{drift\_k\_followups}.} A documentação descreve a opção apenas como o número de resultados globais recuperados. No código, ela define também quantas perguntas são respondidas em cada rodada, sendo, por isso, o principal determinante do custo.
+    \item \textbf{Proporções de contexto.} A documentação descreve \code{local\_search\_text\_unit\_prop} e \code{local\_search\_community\_prop} apenas como as proporções da busca dedicadas a trechos e a comunidades. Não informa que o restante é o espaço das entidades e relações, nem que, com os valores padrão (0,9 e 0,1), esse restante é zero.
+    \item \textbf{Opções sem efeito.} As opções \code{primer\_llm\_max\_tokens}, \code{data\_max\_tokens}, \code{reduce\_max\_tokens} e \code{concurrency} estão documentadas, mas não são lidas pelo código da DRIFT.
+    \item \textbf{Perguntas não respondidas na saída.} Como cada busca local gera novas perguntas, a árvore final contém muitas perguntas que foram geradas e nunca respondidas, o que é o funcionamento normal do algoritmo, mas não é mencionado.
+\end{itemize}
+
+Com os valores padrão, o número de chamadas é $1 + 5 + 3 \times 20 + 1 = 67$, valor confirmado em uma consulta real deste trabalho (Capítulo~\ref{sec-aplicacao}).
 
 \subsection{Busca básica}
 \label{sec-graphrag-consultas-basic}
@@ -238,13 +262,17 @@ A Tabela~\ref{tab-modalidades} resume as quatro modalidades.
 \caption{Comparação entre as modalidades de consulta do GraphRAG 3.1.0 (valores padrão).}
 \label{tab-modalidades}
 \footnotesize
+\renewcommand{\arraystretch}{1.5}
 \begin{tabular}{L{1.6cm} L{3.6cm} L{3.9cm} L{4.6cm}}
 \toprule
 \textbf{Modalidade} & \textbf{Ponto de partida} & \textbf{Contexto enviado ao modelo} & \textbf{Chamadas ao modelo} \\
 \midrule
 Básica & Unidades de texto similares à pergunta & 10 unidades de texto & 1 \\
+\addlinespace[4pt]
 Local & Entidades similares à pergunta & Entidades, relações, relatórios e unidades de texto (12 mil \textit{tokens}) & 1 \\
+\addlinespace[4pt]
 Global & Todos os relatórios até o nível escolhido & Lotes de relatórios (map); pontos-chave (reduce) & Número de lotes + 1; depende do nível \\
+\addlinespace[4pt]
 DRIFT & Relatórios similares a uma resposta hipotética & Relatórios (primer); contexto da busca local (cada pergunta); respostas parciais (redução) & $1 + f + d \times k + 1$ ($f$ grupos, $d$ rodadas, $k$ perguntas por rodada) \\
 \bottomrule
 \end{tabular}
@@ -296,7 +324,7 @@ O comando \code{graphrag prompt-tune} gera \textit{prompts} de indexação adapt
 \section{Configuração}
 \label{sec-graphrag-config}
 
-O \code{settings.yaml} reúne toda a configuração do GraphRAG em seções. Antes de interpretar o arquivo, a biblioteca substitui referências a variáveis de ambiente no formato \verb|${NOME}| pelo valor correspondente, lido do arquivo \code{.env} da pasta raiz; é assim que as chaves de API são fornecidas sem que fiquem escritas na configuração. A configuração completa usada neste trabalho está no Apêndice~\ref{sec-apendice-config}.
+O \code{settings.yaml} reúne toda a configuração do GraphRAG em seções. Antes de interpretar o arquivo, a biblioteca substitui referências a variáveis de ambiente no formato \verb|${NOME}| pelo valor correspondente, lido do arquivo \code{.env} da pasta raiz; é assim que as chaves de API são fornecidas sem que fiquem escritas na configuração. A configuração completa usada neste trabalho está no repositório do projeto (Seção~\ref{sec-indexacao-config}).
 
 \subsection{Modelos}
 \label{sec-graphrag-config-modelos}
@@ -392,10 +420,10 @@ As opções das modalidades de consulta estão nas seções \code{local\_search}
  & \footnotesize \code{n\_depth} & \footnotesize 3 & \footnotesize Número de rodadas de aprofundamento. Multiplica as chamadas. \\
  & \footnotesize \code{primer\_folds} & \footnotesize 5 & \footnotesize Número de grupos de relatórios no primer. \\
  & \footnotesize \code{local\_search\_text\_unit\_prop} & \footnotesize 0,9 & \footnotesize Fração do contexto de cada busca local para unidades de texto. \\
- & \footnotesize \code{local\_search\_community\_prop} & \footnotesize 0,1 & \footnotesize Fração para relatórios. Com os padrões, sobra 0\% para entidades e relações (Seção~\ref{sec-graphrag-defeitos}). \\
+ & \footnotesize \code{local\_search\_community\_prop} & \footnotesize 0,1 & \footnotesize Fração para relatórios. Com os padrões, sobra 0\% para entidades e relações (defeito 7 da Tabela~\ref{tab-defeitos}). \\
  & \footnotesize \code{local\_search\_top\_k\_mapped\_entities}, \code{\_top\_k\_relationships} & \footnotesize 10, 10 & \footnotesize Iguais aos da busca local. \\
  & \footnotesize \code{local\_search\_max\_data\_tokens} & \footnotesize 12000 & \footnotesize Teto do contexto de cada busca local; multiplicado pelo número de perguntas respondidas. \\
- & \footnotesize \code{local\_search\_temperature}, \code{reduce\_temperature} & \footnotesize 0 & \footnotesize Únicas temperaturas definidas por padrão nas consultas (Seção~\ref{sec-graphrag-defeitos}). \\
+ & \footnotesize \code{local\_search\_temperature}, \code{reduce\_temperature} & \footnotesize 0 & \footnotesize Únicas temperaturas definidas por padrão nas consultas (defeito 6 da Tabela~\ref{tab-defeitos}). \\
 \end{longtable}
 
 Do ponto de vista de custo, as opções se dividem em dois grupos. As que controlam o \textbf{tamanho do contexto} (\code{max\_context\_tokens}, \code{k}, proporções) alteram os \textit{tokens} de cada chamada de forma aproximadamente linear. As que controlam o \textbf{número de chamadas} (\code{community\_level} na busca global; \code{drift\_k\_followups} e \code{n\_depth} na DRIFT) multiplicam o custo e são as que mais pesam.
@@ -404,33 +432,34 @@ Do ponto de vista de custo, as opções se dividem em dois grupos. As que contro
 \section{Defeitos e Comportamentos Não Documentados}
 \label{sec-graphrag-defeitos}
 
-O uso do GraphRAG fora dos exemplos da documentação -- em português, com taxonomia própria, com modelos de raciocínio e chamado como biblioteca pelo \textit{backend} -- revelou defeitos e comportamentos não documentados da versão 3.1.0. Eles são relevantes porque vários afetam silenciosamente o resultado das consultas e, portanto, qualquer comparação entre modalidades. A Tabela~\ref{tab-defeitos} os resume; o tratamento dado a cada um é descrito nos capítulos~\ref{sec-indexacao} e~\ref{sec-aplicacao}.
+O uso do GraphRAG fora dos exemplos da documentação -- em português, com taxonomia própria, com modelos de raciocínio e chamado como biblioteca -- revelou defeitos e comportamentos não documentados da versão 3.1.0, resumidos na Tabela~\ref{tab-defeitos}. Vários afetam silenciosamente o resultado das consultas. Cada um é descrito em detalhes, com as correções adotadas, no documento de observações de implementação do repositório do projeto (Seção~\ref{sec-intro-organizacao}), que usa a mesma numeração.
 
-\begin{longtable}{L{0.5cm} L{6.2cm} L{7.2cm}}
-\caption{Defeitos e comportamentos não documentados identificados no GraphRAG 3.1.0.}
-\label{tab-defeitos} \\
+\begin{table}[H]
+\centering
+\caption{Defeitos e comportamentos não documentados do GraphRAG 3.1.0.}
+\label{tab-defeitos}
+\scriptsize
+\setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{r l}
 \toprule
-\textbf{\#} & \textbf{Problema} & \textbf{Efeito} \\
+\textbf{\#} & \textbf{Problema e efeito} \\
 \midrule
-\endfirsthead
-\multicolumn{3}{l}{\footnotesize\textit{(continuação)}} \\
-\toprule
-\textbf{\#} & \textbf{Problema} & \textbf{Efeito} \\
-\midrule
-\endhead
+1 & Busca básica usada como biblioteca sempre devolve resposta vazia (falta um \code{await}); a CLI não é afetada. \\
+2 & O ajuste automático de \textit{prompts} gera todos os exemplos de extração a partir do mesmo trecho. \\
+3 & O ajuste automático de \textit{prompts} ignora a taxonomia e exige um modelo com identificador fixo. \\
+4 & \textit{Prompt} de consulta não encontrado é trocado silenciosamente pelo \textit{prompt} padrão. \\
+5 & Variáveis de ambiente são substituídas em todo o \code{settings.yaml}, inclusive em comentários. \\
+6 & Só a DRIFT define temperatura nas consultas (padrão 0), o que falha com modelos de raciocínio. \\
+7 & Na DRIFT, as proporções padrão (0,9 + 0,1) não deixam espaço para entidades e relações. \\
+8 & Na DRIFT, as perguntas aprofundadas em cada rodada são sorteadas. \\
+9 & Nas buscas local e básica, o contexto só é notificado aos \textit{callbacks} após a resposta. \\
+10 & As métricas de \textit{tokens} não incluem os \textit{tokens} de raciocínio. \\
+11 & O LiteLLM instalado não reconhece modelos recentes e não filtra parâmetros não suportados. \\
+12 & A busca básica envia os trechos na ordem do corpus, e não na de similaridade. \\
+13 & Na busca local, relatórios maiores que a fração reservada a eles não entram no contexto, sem aviso. \\
 \bottomrule
-\endfoot
-\footnotesize 1 & \footnotesize O método \code{search()} da busca básica chama a geração em modo \textit{streaming} sem aguardar a corrotina (\code{await} ausente). & \footnotesize O erro é capturado internamente e a busca básica \textbf{sempre devolve resposta vazia}, sem aviso, quando usada como biblioteca. A CLI não é afetada por usar outro método. O defeito persiste na versão 3.2.0. Sem correção, o \textit{baseline} da comparação seria inválido. \\
-\footnotesize 2 & \footnotesize O ajuste automático de \textit{prompts} reutiliza a mesma lista de mensagens em todas as chamadas de geração de exemplos. & \footnotesize Cada chamada recebe os textos de todos os exemplos, e o modelo responde sempre sobre o último: todos os exemplos de extração saem do mesmo trecho. \\
-\footnotesize 3 & \footnotesize O ajuste automático de \textit{prompts} não aceita uma taxonomia definida pelo usuário. & \footnotesize Os tipos ``descobertos'' pelo modelo são gravados fixos no \textit{prompt}, ignorando os \code{entity\_types} da configuração; sem a descoberta, o \textit{prompt} sai sem tipo algum. O comando exige ainda um modelo com identificador fixo (\code{default\_completion\_model}). \\
-\footnotesize 4 & \footnotesize A leitura dos \textit{prompts} de consulta resolve o caminho em relação ao diretório corrente e, se o arquivo não existir, usa o \textit{prompt} padrão. & \footnotesize Um erro no nome ou no caminho do arquivo faz a consulta usar silenciosamente o \textit{prompt} padrão em inglês. \\
-\footnotesize 5 & \footnotesize A substituição de variáveis de ambiente é aplicada ao \code{settings.yaml} inteiro, incluindo comentários. & \footnotesize Um cifrão em um comentário ou uma referência comentada a uma variável inexistente impede o carregamento da configuração. \\
-\footnotesize 6 & \footnotesize Apenas a DRIFT define temperatura nas consultas, com valor padrão 0, herança da versão 2. & \footnotesize Inconsistência entre modalidades; com modelos de raciocínio, que só aceitam temperatura 1, a DRIFT falha. \\
-\footnotesize 7 & \footnotesize Na DRIFT, as proporções padrão das buscas locais somam 1 ($0{,}9 + 0{,}1$). & \footnotesize Não sobra espaço para entidades e relações; e, neste índice, nenhum relatório cabe nos 10\% restantes. As buscas locais da DRIFT passam a usar apenas unidades de texto, ou seja, o grafo só é usado no primer. \\
-\footnotesize 8 & \footnotesize Na DRIFT, as perguntas de acompanhamento de cada rodada são escolhidas por sorteio. & \footnotesize Fonte adicional de variação entre execuções; as notas das perguntas não influenciam a exploração. \\
-\footnotesize 9 & \footnotesize Nas buscas local e básica, o contexto recuperado só é notificado aos \textit{callbacks} depois da geração da resposta. & \footnotesize Não é possível exibir o contexto antes da resposta usando apenas a interface de \textit{callbacks}. \\
-\footnotesize 10 & \footnotesize As métricas de \textit{tokens} das consultas são calculadas pela contagem do texto enviado e recebido. & \footnotesize Não incluem os \textit{tokens} de raciocínio dos modelos de raciocínio e, portanto, subestimam o custo real. \\
-\footnotesize 11 & \footnotesize A versão do LiteLLM utilizada não reconhece modelos lançados depois dela. & \footnotesize Parâmetros não suportados pelo modelo não são filtrados automaticamente e precisam ser definidos de forma compatível na configuração. \\
-\footnotesize 12 & \footnotesize A busca básica converte os resultados da busca vetorial em um conjunto de identificadores e filtra a tabela de unidades de texto por ele. & \footnotesize Os trechos são enviados ao modelo na ordem do corpus, e não na ordem de similaridade; o modelo não sabe quais trechos são mais relevantes. \\
-\footnotesize 13 & \footnotesize Na busca local, os relatórios de comunidade não são truncados e só entram se couberem na fração reservada a eles (15\% de 12 mil \textit{tokens}, por padrão). & \footnotesize Com relatórios maiores que essa fração, como os deste índice, nenhum relatório é incluído no contexto, sem aviso. \\
-\end{longtable}
+\end{tabular}
+\end{table}
+
+
+

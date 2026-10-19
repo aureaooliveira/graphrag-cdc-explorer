@@ -24,6 +24,8 @@ Este trabalho aplicou o \textit{framework} GraphRAG ao Código de Defesa do Cons
 
 O principal resultado do trabalho é tornar observável a etapa de recuperação de um sistema GraphRAG. As consultas analisadas mostraram que as modalidades diferem muito mais no contexto que enviam ao modelo do que se percebe pelas respostas: as três respostas analisadas estavam corretas, mas se apoiaram em contextos de natureza, tamanho e custo muito distintos -- de dez trechos de texto e 4,5 mil \textit{tokens} na busca básica a mais de meio milhão de \textit{tokens} em 67 chamadas na DRIFT. Mostraram também que, com a configuração padrão, partes importantes da estrutura de grafo não chegam ao modelo: a busca local não inclui relatórios de comunidade, e as buscas locais executadas pela DRIFT recebem apenas trechos de texto. Nenhum desses comportamentos é visível pela resposta ou pelas métricas, e nenhum é sinalizado pela biblioteca.
 
+A análise do próprio grafo também trouxe resultados sobre o domínio. O grafo concentra-se em quatro entidades centrais -- consumidor, fornecedor, produto e serviço --, organiza espontaneamente os conceitos em estruturas de gênero e espécie que reproduzem as definições da lei, aproxima artigos distantes no texto por meio de conceitos comuns e agrupa as entidades em comunidades temáticas que não coincidem com a divisão formal em títulos e capítulos. Essas características ajudam a explicar o comportamento das buscas e indicam que o grafo é, por si só, um instrumento útil para explorar a estrutura de uma lei.
+
 \subsection{Lições aprendidas}
 \label{sec-conclusoes-licoes}
 
@@ -32,7 +34,6 @@ O principal resultado do trabalho é tornar observável a etapa de recuperação
     \item \textbf{A qualidade do grafo depende da padronização.} Como o GraphRAG funde entidades pelo nome e pelo tipo, as definições dos tipos e as regras de nomeação inseridas no \textit{prompt} de extração foram decisivas para evitar nós duplicados.
     \item \textbf{O custo é dominado pela extração e pelas modalidades com muitas chamadas.} A indexação custou várias vezes a estimativa feita a partir do tamanho do corpus, e as buscas global e DRIFT podem custar dezenas de vezes uma busca local, conforme a configuração.
     \item \textbf{Configurações padrão não são neutras.} Os valores padrão das proporções de contexto, combinados ao tamanho dos relatórios gerados, determinam silenciosamente o que cada modalidade usa do grafo. Qualquer comparação entre modalidades precisa declarar e justificar essas configurações.
-    \item \textbf{Usar a biblioteca exige ler o código.} Defeitos e comportamentos não documentados -- como a busca básica que devolve resposta vazia quando usada programaticamente, a ordem de similaridade descartada nessa mesma busca e o ajuste de \textit{prompts} que gera todos os exemplos a partir do mesmo trecho -- só foram identificados pela inspeção do código e dos dados intermediários.
 \end{itemize}
 
 \subsection{Limitações}
@@ -52,16 +53,15 @@ O trabalho futuro mais direto é a \textbf{avaliação comparativa sistemática}
     \item \textbf{repetições} de cada pergunta em cada modalidade, para medir a consistência das respostas, já que a temperatura, o embaralhamento da busca global e os sorteios da DRIFT fazem as respostas variarem;
     \item \textbf{critérios de avaliação} como correção jurídica, completude, fundamentação nas fontes citadas e ausência de alucinação, com avaliação manual e, para comparação, avaliação por um LLM em comparações par a par, como em \citeonline{edge2024global};
     \item \textbf{a definição prévia da configuração} de cada modalidade, com base na análise de opções do Capítulo~\ref{sec-graphrag}: o nível de comunidade da busca global; as proporções de contexto das buscas locais da DRIFT, para que usem o grafo; e o número de perguntas por rodada e de rodadas da DRIFT, para controlar o custo;
-    \item \textbf{o registro do custo} de cada modalidade, com a ressalva de que os \textit{tokens} de raciocínio não são contabilizados pela biblioteca.
+    \item \textbf{o registro do custo} de cada modalidade.
 \end{itemize}
 
 Outras possibilidades de continuidade são:
 
 \begin{itemize}
+    \item Ampliar o corpus com legislações relacionadas à defesa do consumidor, como a Lei da Ação Civil Pública e normas regulamentadoras do CDC, explorando a identificação de remissões entre normas para estabelecer conexões entre diferentes documentos jurídicos e enriquecer o grafo de conhecimento.
     \item analisar consultas globais reais nos diferentes níveis da hierarquia de comunidades, completando a análise qualitativa do Capítulo~\ref{sec-analise};
     \item ajustar as proporções de contexto da busca local, ou o tamanho máximo dos relatórios de comunidade, para que os relatórios passem a integrar o contexto, e analisar o efeito nas respostas;
-    \item corrigir na biblioteca, e reportar à equipe do GraphRAG, os defeitos identificados, em particular a falha da busca básica, a perda da ordem de similaridade e o ajuste de \textit{prompts};
-    \item ampliar o corpus com normas relacionadas ao CDC, como a Lei da Ação Civil Pública e as regulamentações do código, e com jurisprudência, aproveitando o \textit{parser} genérico e as remissões entre normas já representadas no grafo;
     \item explorar recursos não utilizados, como a extração de alegações e a seleção dinâmica de comunidades;
     \item comparar provedores e modelos de linguagem, inclusive modelos locais, mantendo o restante da configuração;
     \item aprimorar a aplicação, por exemplo distinguindo na árvore da DRIFT as perguntas geradas e não respondidas e exibindo o contexto de cada busca local da DRIFT no grafo.
