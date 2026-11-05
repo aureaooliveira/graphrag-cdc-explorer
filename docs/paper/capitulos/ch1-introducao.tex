@@ -9,7 +9,36 @@ Modelos de linguagem de grande porte (\textit{Large Language Models} -- LLMs) \c
 
 Na forma mais comum de RAG, o texto é dividido em fragmentos (\textit{chunks}), cada fragmento é convertido em um vetor numérico (\textit{embedding}) e, na consulta, recuperam-se os fragmentos cujos vetores são mais similares ao vetor da pergunta \cite{gao2023retrieval}. Essa estratégia funciona bem quando a resposta está concentrada em poucos trechos, mas apresenta limitações quando o conhecimento tem estrutura fortemente relacional e a resposta depende de conectar informações dispersas pelo corpus. Essa situação é recorrente em textos legislativos: artigos remetem uns aos outros, estabelecem definições usadas em outros pontos da lei, preveem exceções e consequências em dispositivos distintos e organizam-se em uma hierarquia de títulos, capítulos e seções que também carrega significado.
 
-O \textit{framework} GraphRAG, desenvolvido pela Microsoft Research \cite{edge2024global}, propõe uma alternativa a essa limitação. Em vez de recuperar apenas fragmentos semanticamente similares, o GraphRAG utiliza um LLM para extrair do corpus um grafo de conhecimento -- entidades e relações entre elas --, agrupa as entidades em comunidades hierárquicas por meio de um algoritmo de detecção de comunidades e gera relatórios textuais que resumem cada comunidade. Essas estruturas permitem modalidades de consulta que não existem no RAG vetorial: buscas locais, que partem de entidades específicas e percorrem suas relações; buscas globais, que sintetizam informação distribuída por todo o corpus a partir dos relatórios de comunidade; e a busca DRIFT, que combina as duas de forma iterativa.
+Independentemente da forma como o conhecimento é organizado, um sistema de RAG combina duas etapas, ilustradas na Figura~\ref{fig-intro-rag}. A primeira é a \textbf{indexação}, executada uma única vez, antes de qualquer pergunta: os documentos são processados e convertidos em uma base indexada, isto é, uma estrutura que permite localizar rapidamente as partes do corpus relacionadas a um assunto, que indica onde cada tema é tratado sem que seja preciso reler todo o conteúdo. A segunda é a \textbf{consulta}, executada a cada pergunta: a pergunta é usada para buscar na base indexada as informações mais relevantes, que são reunidas em um contexto e enviadas ao LLM junto com a pergunta, e o modelo gera a resposta a partir desse contexto. A qualidade da resposta depende, portanto, do que a indexação registrou e do que a recuperação seleciona.
+
+\begin{figure}[htb]
+\centering
+\begin{tikzpicture}[
+  node distance=5mm and 7mm,
+  box/.style={draw, rounded corners=2pt, align=center, font=\footnotesize, minimum height=10mm, text width=21mm, fill=gray!8},
+  db/.style={draw, cylinder, shape border rotate=90, aspect=0.25, align=center, font=\footnotesize, minimum height=13mm, text width=19mm, fill=blue!6},
+  arr/.style={-{Stealth[length=2mm]}, thick},
+  lab/.style={font=\footnotesize\bfseries}
+]
+\node[box] (docs) {Documentos};
+\node[box, right=of docs, fill=orange!10] (idx) {Indexação};
+\node[db, right=of idx] (base) {Base indexada};
+\draw[arr] (docs) -- (idx); \draw[arr] (idx) -- (base);
+\node[box, below=15mm of docs] (q) {Pergunta};
+\node[box, right=of q] (rec) {Recuperação};
+\node[box, right=of rec] (ctx) {Contexto relevante + pergunta};
+\node[box, right=of ctx, fill=orange!10] (llm) {LLM};
+\node[box, right=of llm, fill=green!8] (resp) {Resposta};
+\draw[arr] (q) -- (rec); \draw[arr] (rec) -- (ctx); \draw[arr] (ctx) -- (llm); \draw[arr] (llm) -- (resp);
+\draw[arr, dashed] (base) -- node[right, font=\scriptsize, xshift=1mm]{busca} (rec);
+\node[lab, above=1mm of docs.north west, anchor=south west] {Indexação (uma vez)};
+\node[lab, above=1mm of q.north west, anchor=south west] {Consulta (a cada pergunta)};
+\end{tikzpicture}
+\caption{Visão geral de um sistema de geração aumentada por recuperação (RAG).}
+\label{fig-intro-rag}
+\end{figure}
+
+O \textit{framework} GraphRAG, desenvolvido pela Microsoft Research \cite{edge2024global}, propõe uma alternativa às limitações do RAG vetorial, mudando o que é registrado na indexação. Em vez de indexar apenas fragmentos de texto e recuperar os semanticamente similares, o GraphRAG utiliza um LLM para extrair do corpus um grafo de conhecimento -- entidades e relações entre elas --, agrupa as entidades em comunidades hierárquicas por meio de um algoritmo de detecção de comunidades e gera relatórios textuais que resumem cada comunidade. Essas estruturas permitem modalidades de consulta que não existem no RAG vetorial: buscas locais, que partem de entidades específicas e percorrem suas relações; buscas globais, que sintetizam informação distribuída por todo o corpus a partir dos relatórios de comunidade; e a busca DRIFT \cite{microsoft2024drift}, que combina as duas de forma iterativa.
 
 Este trabalho aplica o GraphRAG ao Código de Defesa do Consumidor (CDC, Lei nº 8.078/1990) \cite{brasil1990cdc}. O escopo está delimitado à construção de uma prova de conceito (\textit{Proof of Concept} -- PoC) composta por: (i) um \textit{pipeline} de preparação do texto do CDC e de indexação com o GraphRAG, que gera o grafo de conhecimento da lei; e (ii) uma aplicação web para visualização interativa desse grafo e para realização de consultas em linguagem natural nas quatro modalidades oferecidas pelo GraphRAG (local, global, DRIFT e básica), exibindo passo a passo o que cada modalidade recupera e envia ao modelo e registrando cada consulta. Com isso, a aplicação funciona como ferramenta de análise qualitativa da recuperação: permite examinar, para cada tipo de busca, as informações recuperadas e o contexto efetivamente enviado ao modelo. A modalidade básica, que realiza busca vetorial pura sobre o mesmo corpus, com os mesmos modelos, serve de referência de RAG tradicional. Uma avaliação comparativa sistemática da qualidade das respostas, com conjunto de perguntas e repetições, não faz parte do escopo desta etapa e é proposta como trabalho futuro. Ficam fora do escopo a extensão a outras leis, a incorporação de jurisprudência e a disponibilização do sistema em ambiente de produção.
 
@@ -21,7 +50,7 @@ A motivação deste trabalho parte do interesse em investigar, na prática, as l
 
 O CDC foi escolhido como domínio de aplicação por três razões. Primeiro, trata-se de uma legislação de grande relevância social e de ampla aplicação no cotidiano da população brasileira. Segundo, tem tamanho gerenciável para uma prova de conceito, o que permite iterar sobre a configuração e a indexação em tempo e custo compatíveis com um Trabalho de Conclusão de Curso, sem perder a complexidade relacional típica de textos legislativos. Terceiro, seus dispositivos fazem referências a normas e leis externas ao próprio código, o que permite vislumbrar a expansão deste trabalho para outras legislações e a ampliação do grafo de conhecimento, incorporando informações jurídicas adicionais de forma estruturada e interligada. Em trabalhos futuros, essa expansão pode contribuir para a representação de relações entre diferentes legislações.
 
-Do ponto de vista técnico, embora sistemas de RAG aplicados ao domínio jurídico já tenham sido explorados \cite{cui2023chatlaw, magesh2024hallucination}, a maior parte utiliza recuperação vetorial tradicional, e há pouca documentação prática sobre como adaptar o GraphRAG a um corpus jurídico em português: como estruturar o texto de entrada, como definir os tipos de entidade, como ajustar os \textit{prompts}, quanto custa a indexação, como se comportam e quanto custam as diferentes modalidades de consulta. Como se verá nos capítulos seguintes, essa adaptação revelou também comportamentos não documentados, o que reforça a importância de uma investigação prática e transparente.
+Do ponto de vista técnico, embora sistemas de RAG aplicados ao domínio jurídico já tenham sido explorados \cite{cui2023chatlaw, magesh2024hallucination, lima2024multilayered, lima2025polyvector}, a maior parte utiliza recuperação vetorial, e há pouca documentação prática sobre como adaptar o GraphRAG a um corpus jurídico em português: como estruturar o texto de entrada, como definir os tipos de entidade, como ajustar os \textit{prompts}, quanto custa a indexação, como se comportam e quanto custam as diferentes modalidades de consulta. Como se verá nos capítulos seguintes, essa adaptação revelou também comportamentos não documentados, o que reforça a importância desta investigação.
 
 %%% Início de seção. %%%
 \section{Objetivos}
@@ -35,9 +64,9 @@ São objetivos específicos deste trabalho:
     \item Revisar a literatura sobre modelos de linguagem, geração aumentada por recuperação, RAG baseado em grafos de conhecimento e aplicações no domínio jurídico;
     \item Estudar o \textit{framework} GraphRAG em profundidade -- seu \textit{pipeline} de indexação, suas modalidades de consulta e suas opções de configuração --, documentando os impactos de cada opção em qualidade e custo;
     \item Preparar o texto do CDC para indexação, preservando a hierarquia da lei e a situação normativa (vigente, vetado ou revogado) de cada dispositivo;
-    \item Definir uma taxonomia de tipos de entidade adequada ao CDC e ajustar os \textit{prompts} de extração do GraphRAG ao domínio;
+    \item Ajustar as configurações do GraphRAG para adequar as etapas de indexação e de consulta ao contexto da legislação consumerista;
     \item Executar o \textit{pipeline} de indexação do GraphRAG sobre o CDC e analisar o grafo de conhecimento resultante;
-    \item Desenvolver uma aplicação web para visualização interativa do grafo e realização de consultas nas modalidades local, global, DRIFT e básica, exibindo as etapas intermediárias de cada consulta e registrando-as em banco de dados;
+    \item Desenvolver uma aplicação web para visualização interativa do grafo e realização de consultas nas diferentes modalidades de busca oferecidas pelo GraphRAG, exibindo as etapas intermediárias de cada consulta e registrando-as em banco de dados;
     \item Analisar qualitativamente, com o apoio da aplicação, o contexto recuperado e enviado ao modelo em consultas de cada modalidade, comparando-o com o da busca vetorial tradicional.
 \end{itemize}
 

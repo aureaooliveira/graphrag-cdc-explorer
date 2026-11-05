@@ -22,7 +22,7 @@ Essa versão permitiu montar o ambiente em contêineres, entender o \textit{pipe
 \subsection{Fonte e estratégia}
 \label{sec-indexacao-corpus-fonte}
 
-O texto do CDC foi obtido da versão compilada publicada no portal da legislação federal \cite{brasil1990cdc}, mantida no repositório do projeto\footnote{\url{https://github.com/aureaooliveira/graphrag-cdc-explorer/blob/master/corpus/raw/cdc_planalto.txt}}, que incorpora as alterações posteriores e mantém os dispositivos vetados e revogados com a respectiva indicação. Em vez de indexar o texto bruto -- o que deixaria a segmentação cortar artigos ao meio e perderia a hierarquia --, optou-se por estruturar o texto em \textbf{um registro por artigo}. Essa escolha segue a própria técnica legislativa, que define o artigo como unidade básica da lei (Seção~\ref{sec-referencial-juridico-estrutura}), e faz com que cada unidade de texto do GraphRAG corresponda a um artigo completo.
+O texto do CDC foi obtido da versão compilada publicada no portal da legislação federal \cite{brasil1990cdc}, mantida no repositório do projeto\footnote{\url{https://github.com/aureaooliveira/graphrag-cdc-explorer/blob/master/corpus/raw/cdc_planalto.txt}}, que incorpora as alterações posteriores e mantém os dispositivos vetados e revogados com a respectiva indicação. Em vez de indexar o texto bruto -- o que deixaria a segmentação cortar artigos ao meio e perderia a hierarquia --, optou-se por estruturar o texto em \textbf{um registro por artigo}. Essa escolha segue a própria técnica legislativa, que define o artigo como unidade básica da lei (Seção~\ref{sec-referencial-juridico-estrutura}), e faz com que cada unidade de texto do GraphRAG corresponda a um artigo completo. A escolha também é coerente com os resultados de \citeonline{fernandes2026structural}, para quem fragmentos no nível do artigo, acompanhados de metadados do documento, são uma boa unidade de recuperação para a legislação brasileira.
 
 \subsection{O \textit{parser} da legislação}
 \label{sec-indexacao-corpus-parser}
@@ -73,6 +73,7 @@ O tamanho das unidades de texto foi mantido no padrão de 1.200 \textit{tokens},
 
 Para preservar a hierarquia da lei, foi utilizada a opção \code{prepend\_metadata}, que insere no início de cada unidade de texto a sigla da lei, os nomes do título, do capítulo e da seção e a situação do artigo (Listagem~\ref{lst-chunk}). A mesma informação aparece para o modelo nas consultas, sempre que uma unidade de texto é incluída no contexto.
 
+\Needspace*{13\baselineskip}
 \begin{lstlisting}[caption={Início de uma unidade de texto, com os metadados inseridos pelo \code{prepend\_metadata}.}, label=lst-chunk]
 lei_sigla: CDC.
 titulo_nome: Dos Direitos do Consumidor.
@@ -124,7 +125,9 @@ A decisão foi fixar explicitamente a temperatura 1 nos argumentos de chamada do
 \section{Taxonomia de Entidades}
 \label{sec-indexacao-taxonomia}
 
-Os tipos de entidade definem a ontologia do grafo: o modelo só extrai entidades dos tipos listados. A taxonomia foi definida a partir de uma análise dos seis títulos do CDC, resultando nos catorze tipos da Tabela~\ref{tab-taxonomia}, agrupados por papel. Um tipo próprio para princípios chegou a ser proposto, mas foi incorporado a \code{instituto\_juridico}, já que princípios e institutos são tratados de forma semelhante na lei e a separação aumentaria a indecisão do modelo.
+Uma taxonomia é um esquema de classificação: um conjunto de categorias, definidas previamente, no qual cada elemento de um domínio é enquadrado. No GraphRAG, ela corresponde à lista de tipos de entidade (\code{entity\_types}) inserida no \textit{prompt} de extração (Seção~\ref{sec-graphrag-indexacao-extracao}). Para cada trecho, o modelo identifica os conceitos relevantes e classifica cada um em exatamente um desses tipos, e só são extraídas entidades que se encaixem em algum deles. A taxonomia cumpre, assim, três funções. Primeiro, \textbf{delimita o que entra no grafo}: define quais conceitos do texto são tratados como entidades e, portanto, o que poderá ser recuperado nas consultas. Segundo, \textbf{padroniza a classificação}: como entidades com o mesmo nome e o mesmo tipo são fundidas (Seção~\ref{sec-graphrag-indexacao-extracao}), tipos claros e sem sobreposição evitam que um mesmo conceito seja classificado de formas diferentes e gere nós duplicados. Terceiro, \textbf{organiza a análise}: o tipo acompanha cada entidade no contexto enviado ao modelo e é usado na aplicação para colorir e filtrar o grafo. Os tipos padrão do GraphRAG -- organização, pessoa, local e evento -- foram pensados para textos como notícias e não descrevem o conteúdo de uma lei, que trata de sujeitos, objetos, direitos, obrigações e sanções. Por isso, foi necessário definir uma taxonomia própria para o domínio.
+
+Os tipos de entidade definem, assim, a ontologia do grafo. A taxonomia foi definida a partir de uma análise dos seis títulos do CDC, resultando nos catorze tipos da Tabela~\ref{tab-taxonomia}, agrupados por papel. Um tipo próprio para princípios chegou a ser proposto, mas foi incorporado a \code{instituto\_juridico}, já que princípios e institutos são tratados de forma semelhante na lei e a separação aumentaria a indecisão do modelo.
 
 \begin{table}[htb]
 \centering
